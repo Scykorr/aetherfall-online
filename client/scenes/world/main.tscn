@@ -1,0 +1,49 @@
+[gd_scene load_steps=7 format=3]
+
+[ext_resource path="res://scenes/actors/player.tscn" type="PackedScene" id="1"]
+[ext_resource path="res://scripts/camera/mmorpg_camera.gd" type="Script" id="2"]
+
+[sub_resource type="BoxMesh" id="GroundMesh"]
+size = Vector3(30, 0.2, 30)
+
+[sub_resource type="BoxShape3D" id="GroundShape"]
+size = Vector3(30, 0.2, 30)
+
+[sub_resource type="Environment" id="Environment"]
+background_mode = 1
+background_color = Color(0.12, 0.16, 0.2, 1)
+ambient_light_source = 3
+ambient_light_color = Color(0.8, 0.85, 1, 1)
+ambient_light_energy = 0.7
+
+[sub_resource type="StandardMaterial3D" id="GroundMaterial"]
+albedo_color = Color(0.22, 0.32, 0.25, 1)
+roughness = 1.0
+
+[node name="Main" type="Node3D"]
+
+[node name="WorldEnvironment" type="WorldEnvironment" parent="."]
+environment = SubResource("Environment")
+
+[node name="DirectionalLight3D" type="DirectionalLight3D" parent="."]
+rotation_degrees = Vector3(-55, -30, 0)
+shadow_enabled = true
+
+[node name="Ground" type="StaticBody3D" parent="."]
+
+[node name="MeshInstance3D" type="MeshInstance3D" parent="Ground"]
+mesh = SubResource("GroundMesh")
+material_override = SubResource("GroundMaterial")
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="Ground"]
+shape = SubResource("GroundShape")
+
+[node name="Player" parent="." instance=ExtResource("1")]
+unique_name_in_owner = true
+position = Vector3(0, 0.1, 0)
+
+[node name="Camera3D" type="Camera3D" parent="." node_paths=PackedStringArray("target")]
+position = Vector3(0, 9, 10)
+current = true
+script = ExtResource("2")
+target = NodePath("../Player")

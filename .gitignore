@@ -1,0 +1,14 @@
+.godot/
+.import/
+*.tmp
+*.log
+.env
+.env.*
+!.env.example
+backend/pgdata/
+build/
+dist/
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
