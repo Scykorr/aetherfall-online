@@ -1,0 +1,16 @@
+{
+  "id": "basic_attack",
+  "version": 1,
+  "targeting": {
+    "type": "single",
+    "range_m": 2.5
+  },
+  "cooldown_s": 1.0,
+  "effects": [
+    {
+      "type": "damage",
+      "coefficient": 1.0,
+      "damage_type": "kinetic"
+    }
+  ]
+}

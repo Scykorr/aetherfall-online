@@ -1,0 +1,9 @@
+{
+  "id": "training_wisp",
+  "version": 1,
+  "stats": {
+    "max_hp": 100,
+    "move_speed": 2.5
+  },
+  "behavior": "training_passive"
+}

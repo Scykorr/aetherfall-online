@@ -1,0 +1,92 @@
+# Codex task queue
+
+Work strictly top-to-bottom unless the human explicitly reprioritizes.
+
+## TASK-001 — Verify bootstrap client
+
+Goal: ensure the committed Godot client opens and runs without script errors.
+
+Acceptance:
+- `client/project.godot` imports in Godot 4.x;
+- Main scene starts;
+- grey floor, player capsule and camera are visible;
+- no copyrighted third-party assets.
+
+Do not add networking.
+
+## TASK-002 — Player movement polish
+
+Goal: improve the existing WASD greybox movement.
+
+Acceptance:
+- movement uses Input Map;
+- diagonal movement is normalized;
+- acceleration/deceleration are configurable exports;
+- player rotates toward movement direction;
+- movement remains framerate-independent via physics tick.
+
+Non-goal: animation.
+
+## TASK-003 — Camera feel
+
+Goal: make a fixed three-quarter MMORPG camera component.
+
+Acceptance:
+- exported distance, height and look-ahead;
+- smooth follow;
+- optional zoom input with min/max;
+- player movement does not rotate the camera.
+
+Non-goal: free orbit camera.
+
+## TASK-004 — Headless zone server bootstrap
+
+Goal: create a minimal Godot headless server project.
+
+Acceptance:
+- server launches headless;
+- creates a deterministic test zone;
+- prints simulation tick health periodically;
+- no client connection yet.
+
+## TASK-005 — Client/server handshake
+
+Goal: two clients can connect to the zone server and receive assigned network IDs.
+
+Acceptance:
+- server owns IDs;
+- disconnect cleans up session;
+- malformed handshake rejected;
+- protocol version is explicit.
+
+## TASK-006 — Authoritative network movement
+
+Goal: replace local-authoritative movement with input intent + server snapshots.
+
+Acceptance:
+- client sends directional input;
+- server computes final position;
+- remote clients interpolate;
+- client-supplied transform cannot teleport character.
+
+## TASK-007 — First server-owned monster
+
+Goal: server spawns one training creature.
+
+Acceptance:
+- monster exists on server first;
+- clients receive spawn/despawn;
+- idle/wander is server-side;
+- monster has server-owned HP.
+
+## TASK-008 — Basic attack
+
+Goal: server-authoritative basic attack.
+
+Acceptance:
+- range/cooldown/alive state validated;
+- client damage values ignored;
+- server computes damage;
+- both clients see identical target HP.
+
+STOP after each task and request review before starting the next task.

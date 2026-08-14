@@ -6,6 +6,10 @@ extends CharacterBody3D
 @export var deceleration: float = 24.0
 @export var rotation_speed: float = 12.0
 
+var gravity: float = float(
+    ProjectSettings.get_setting("physics/3d/default_gravity")
+)
+
 func _physics_process(delta: float) -> void:
     var input_2d := Input.get_vector(
         "move_left",
@@ -17,18 +21,27 @@ func _physics_process(delta: float) -> void:
     if direction.length_squared() > 1.0:
         direction = direction.normalized()
 
-    var target_velocity := direction * move_speed
+    var horizontal_velocity := Vector2(velocity.x, velocity.z)
+    var target_velocity := Vector2(direction.x, direction.z) * move_speed
     var rate := acceleration if direction.length_squared() > 0.0 else deceleration
-    velocity.x = move_toward(velocity.x, target_velocity.x, rate * delta)
-    velocity.z = move_toward(velocity.z, target_velocity.z, rate * delta)
+    horizontal_velocity = horizontal_velocity.move_toward(
+        target_velocity,
+        rate * delta
+    )
+    velocity.x = horizontal_velocity.x
+    velocity.z = horizontal_velocity.y
 
     if not is_on_floor():
-        velocity.y -= 20.0 * delta
+        velocity.y -= gravity * delta
     else:
         velocity.y = 0.0
 
     if direction.length_squared() > 0.001:
         var target_yaw := atan2(direction.x, direction.z)
-        rotation.y = lerp_angle(rotation.y, target_yaw, rotation_speed * delta)
+        rotation.y = rotate_toward(
+            rotation.y,
+            target_yaw,
+            rotation_speed * delta
+        )
 
     move_and_slide()

@@ -1,0 +1,32 @@
+services:
+  postgres:
+    image: postgres:17
+    environment:
+      POSTGRES_DB: nakama
+      POSTGRES_USER: nakama
+      POSTGRES_PASSWORD: localdev
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+
+  nakama:
+    image: registry.heroiclabs.com/heroiclabs/nakama:latest
+    depends_on:
+      - postgres
+    entrypoint:
+      - /bin/sh
+      - -ecx
+      - >
+        /nakama/nakama migrate up --database.address nakama:localdev@postgres:5432/nakama &&
+        exec /nakama/nakama
+        --name nakama1
+        --database.address nakama:localdev@postgres:5432/nakama
+        --logger.level DEBUG
+    ports:
+      - "7349:7349"
+      - "7350:7350"
+      - "7351:7351"
+
+volumes:
+  pgdata:
