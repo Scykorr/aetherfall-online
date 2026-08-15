@@ -39,6 +39,22 @@ Acceptance:
 
 Non-goal: free orbit camera.
 
+## TASK-003A — Mouse Movement Controller
+
+Goal: replace WASD runtime movement with classic MMORPG mouse movement while preserving right-mouse camera orbit.
+
+Acceptance:
+- a short left click uses a camera ray and walkable-only physics query to set a destination;
+- holding left mouse past an exported threshold follows the ground point under the cursor and stops on release;
+- movement uses explicit `IDLE`, `MOVE_TO_POINT` and `FOLLOW_CURSOR` intent states;
+- exported arrival distance prevents jitter at the destination;
+- the destination marker uses only Godot primitives and hides on arrival;
+- UI clicks and invalid ground hits do not create movement commands;
+- player acceleration, deceleration and smooth rotation remain physics-tick based;
+- right-mouse camera orbit and wheel zoom continue to work independently.
+
+Non-goals: NavMesh, networking, combat, targeting, interaction and animation.
+
 ## TASK-004 — Headless zone server bootstrap
 
 Goal: create a minimal Godot headless server project.

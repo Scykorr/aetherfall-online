@@ -5,19 +5,16 @@ extends CharacterBody3D
 @export var acceleration: float = 18.0
 @export var deceleration: float = 24.0
 @export var rotation_speed: float = 12.0
+@export var movement_controller: MouseMovementController
 
 var gravity: float = float(
     ProjectSettings.get_setting("physics/3d/default_gravity")
 )
 
 func _physics_process(delta: float) -> void:
-    var input_2d := Input.get_vector(
-        "move_left",
-        "move_right",
-        "move_forward",
-        "move_back"
-    )
-    var direction := Vector3(input_2d.x, 0.0, input_2d.y)
+    var direction := Vector3.ZERO
+    if movement_controller != null:
+        direction = movement_controller.get_movement_direction()
     if direction.length_squared() > 1.0:
         direction = direction.normalized()
 
