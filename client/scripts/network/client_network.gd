@@ -49,6 +49,9 @@ var _combat_test_saw_death: bool = false
 var _combat_test_saw_respawn: bool = false
 var _combat_test_last_attack_tick: int = -1000
 var _combat_test_last_chase_tick: int = -1000
+var _ai_test_mode: String = ""
+var _last_local_hp: int = -1
+var _last_monster_ai_state: String = ""
 
 func _unhandled_input(event: InputEvent) -> void:
     if event.is_action_pressed("basic_attack"):
@@ -76,6 +79,8 @@ func connect_to_zone() -> void:
     _combat_test_saw_respawn = false
     _combat_test_last_attack_tick = -1000
     _combat_test_last_chase_tick = -1000
+    _last_local_hp = -1
+    _last_monster_ai_state = ""
     _peer = ENetMultiplayerPeer.new()
     var error := _peer.create_client(_config.host, _config.port)
     if error != OK:
@@ -248,6 +253,26 @@ func movement_snapshot(snapshot: Dictionary) -> void:
                     else "none"
                 )
             )
+        var local_hp: int = local_state.get("current_hp", -1)
+        if local_hp != _last_local_hp:
+            _last_local_hp = local_hp
+            print(
+                "[Aetherfall Client] Authoritative player HP: %d / %d"
+                % [local_hp, local_state.get("max_hp", -1)]
+            )
+    if not _ai_test_mode.is_empty():
+        for entity: Dictionary in snapshot["entities"]:
+            if entity["entity_type"] == "monster":
+                var ai_state: String = entity["movement_state"]
+                if ai_state != _last_monster_ai_state:
+                    _last_monster_ai_state = ai_state
+                    print(
+                        "[Aetherfall Client] Monster AI: entity=%d state=%s aggro=%d" % [
+                            entity["entity_id"], ai_state,
+                            entity.get("aggro_target_entity_id", 0),
+                        ]
+                    )
+                break
     if _target_test_first_monster and not _target_test_requested:
         for entity: Dictionary in snapshot["entities"]:
             if entity["entity_type"] == "monster":
@@ -349,6 +374,8 @@ func _read_development_arguments() -> void:
             _target_test_first_monster = true
         elif argument.begins_with("--combat-test="):
             _combat_test_mode = argument.trim_prefix("--combat-test=")
+        elif argument.begins_with("--ai-test="):
+            _ai_test_mode = argument.trim_prefix("--ai-test=")
 
 func _quit_test_client() -> void:
     disconnect_from_zone()
@@ -360,6 +387,8 @@ func _start_movement_test() -> void:
     elif _movement_test_mode == "follow_cursor":
         send_follow_direction(Vector3.FORWARD, true)
         get_tree().create_timer(3.0).timeout.connect(send_stop)
+    elif _movement_test_mode == "leash":
+        send_move_to_point(Vector3(-12.0, 0.1, 0.0))
 
 func _run_combat_test(snapshot: Dictionary, local_state: Dictionary) -> void:
     if _combat_test_mode.is_empty() or local_state.is_empty():

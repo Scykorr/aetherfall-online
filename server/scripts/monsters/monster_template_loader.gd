@@ -11,6 +11,7 @@ static func load_template(repository_relative_path: String) -> Dictionary:
         return {}
     var stats: Variant = parsed.get("stats")
     var wander: Variant = parsed.get("wander")
+    var combat: Variant = parsed.get("combat")
     if (
         not parsed.get("id") is String
         or not stats is Dictionary
@@ -18,6 +19,13 @@ static func load_template(repository_relative_path: String) -> Dictionary:
         or not _is_number(stats.get("move_speed"))
         or not wander is Dictionary
         or not _is_number(parsed.get("respawn_seconds"))
+        or not combat is Dictionary
+        or not _is_number(combat.get("aggro_range"))
+        or not _is_number(combat.get("attack_range"))
+        or not _is_number(combat.get("attack_damage"))
+        or not _is_number(combat.get("attack_cooldown"))
+        or not _is_number(combat.get("leash_range"))
+        or not _is_number(combat.get("return_speed"))
     ):
         return {}
     return parsed

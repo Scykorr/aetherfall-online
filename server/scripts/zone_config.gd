@@ -14,6 +14,8 @@ extends Resource
 @export_range(1, 1000, 1) var basic_attack_damage: int = 10
 @export_range(0.1, 20.0, 0.1) var basic_attack_range: float = 2.5
 @export_range(0.1, 10.0, 0.1) var basic_attack_cooldown_seconds: float = 1.0
+@export_range(1, 10000, 1) var player_max_hp: int = 100
+@export_range(1, 60, 1) var monster_aggro_interval_ticks: int = 5
 @export var monster_template_path: String = "shared/data/monsters/training_wisp.json"
 @export var monster_spawn_position: Vector3 = Vector3(6.0, 0.1, -2.0)
 @export var monster_random_seed: int = 1337

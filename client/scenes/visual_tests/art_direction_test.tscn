@@ -1,0 +1,340 @@
+[gd_scene load_steps=25 format=3]
+
+[ext_resource type="Script" path="res://scripts/camera/mmorpg_camera.gd" id="1_camera"]
+
+[sub_resource type="Environment" id="Environment_art_direction"]
+background_mode = 1
+background_color = Color(0.32, 0.48, 0.58, 1)
+ambient_light_source = 3
+ambient_light_color = Color(0.52, 0.68, 0.78, 1)
+ambient_light_energy = 0.72
+reflected_light_source = 2
+tonemap_mode = 2
+
+[sub_resource type="StandardMaterial3D" id="Material_ground"]
+albedo_color = Color(0.19, 0.29, 0.24, 1)
+roughness = 0.96
+
+[sub_resource type="StandardMaterial3D" id="Material_road"]
+albedo_color = Color(0.58, 0.39, 0.22, 1)
+roughness = 0.94
+
+[sub_resource type="StandardMaterial3D" id="Material_stone"]
+albedo_color = Color(0.34, 0.35, 0.32, 1)
+roughness = 0.9
+
+[sub_resource type="StandardMaterial3D" id="Material_vegetation"]
+albedo_color = Color(0.12, 0.42, 0.38, 1)
+roughness = 0.88
+
+[sub_resource type="StandardMaterial3D" id="Material_architecture"]
+albedo_color = Color(0.68, 0.57, 0.39, 1)
+roughness = 0.86
+
+[sub_resource type="StandardMaterial3D" id="Material_player"]
+albedo_color = Color(0.86, 0.78, 0.59, 1)
+roughness = 0.72
+
+[sub_resource type="StandardMaterial3D" id="Material_player_accent"]
+albedo_color = Color(0.12, 0.48, 0.72, 1)
+roughness = 0.66
+
+[sub_resource type="StandardMaterial3D" id="Material_monster"]
+albedo_color = Color(0.29, 0.16, 0.4, 1)
+roughness = 0.78
+
+[sub_resource type="StandardMaterial3D" id="Material_monster_accent"]
+albedo_color = Color(0.72, 0.24, 0.58, 1)
+roughness = 0.62
+
+[sub_resource type="BoxMesh" id="Mesh_ground"]
+size = Vector3(32, 0.3, 24)
+
+[sub_resource type="BoxMesh" id="Mesh_road"]
+size = Vector3(6, 0.08, 24)
+
+[sub_resource type="SphereMesh" id="Mesh_rock"]
+radius = 1.0
+height = 2.0
+radial_segments = 12
+rings = 6
+
+[sub_resource type="CylinderMesh" id="Mesh_trunk"]
+top_radius = 0.28
+bottom_radius = 0.42
+height = 3.6
+radial_segments = 8
+
+[sub_resource type="SphereMesh" id="Mesh_canopy"]
+radius = 1.5
+height = 2.5
+radial_segments = 10
+rings = 5
+
+[sub_resource type="BoxMesh" id="Mesh_arch_pillar"]
+size = Vector3(1.1, 3.8, 1.1)
+
+[sub_resource type="BoxMesh" id="Mesh_arch_lintel"]
+size = Vector3(4.4, 0.9, 1.1)
+
+[sub_resource type="CapsuleMesh" id="Mesh_player_body"]
+radius = 0.38
+height = 1.25
+radial_segments = 12
+rings = 4
+
+[sub_resource type="SphereMesh" id="Mesh_player_head"]
+radius = 0.3
+height = 0.6
+radial_segments = 12
+rings = 6
+
+[sub_resource type="PrismMesh" id="Mesh_facing_wedge"]
+size = Vector3(0.34, 0.18, 0.42)
+
+[sub_resource type="SphereMesh" id="Mesh_monster_body"]
+radius = 0.72
+height = 1.15
+radial_segments = 12
+rings = 6
+
+[sub_resource type="PrismMesh" id="Mesh_crystal"]
+size = Vector3(0.45, 1.15, 0.5)
+
+[sub_resource type="BoxMesh" id="Mesh_scale_bar"]
+size = Vector3(0.08, 2, 0.08)
+
+[node name="ArtDirectionTest" type="Node3D"]
+
+[node name="WorldEnvironment" type="WorldEnvironment" parent="."]
+environment = SubResource("Environment_art_direction")
+
+[node name="Sun" type="DirectionalLight3D" parent="."]
+rotation_degrees = Vector3(-52, -34, 0)
+light_color = Color(1, 0.84, 0.67, 1)
+light_energy = 1.05
+shadow_enabled = true
+directional_shadow_max_distance = 40.0
+
+[node name="Ground" type="MeshInstance3D" parent="."]
+position = Vector3(0, -0.18, 0)
+mesh = SubResource("Mesh_ground")
+material_override = SubResource("Material_ground")
+
+[node name="Road" type="MeshInstance3D" parent="."]
+position = Vector3(0, 0.015, 0)
+mesh = SubResource("Mesh_road")
+material_override = SubResource("Material_road")
+
+[node name="LookTarget" type="Node3D" parent="."]
+position = Vector3(0, 0.9, 1.5)
+
+[node name="Camera3D" type="Camera3D" parent="." node_paths=PackedStringArray("target")]
+position = Vector3(0, 9, 11.5)
+current = true
+fov = 48.0
+script = ExtResource("1_camera")
+target = NodePath("../LookTarget")
+distance = 11.5
+height = 9.0
+look_ahead = Vector3(0, 0.8, -1.5)
+smooth_speed = 12.0
+zoom_enabled = true
+min_distance = 9.0
+max_distance = 14.0
+
+[node name="Rocks" type="Node3D" parent="."]
+
+[node name="RockLarge" type="MeshInstance3D" parent="Rocks"]
+position = Vector3(-6.2, 0.75, -1.5)
+rotation_degrees = Vector3(4, 18, -8)
+scale = Vector3(1.7, 0.9, 1.25)
+mesh = SubResource("Mesh_rock")
+material_override = SubResource("Material_stone")
+
+[node name="RockSmall" type="MeshInstance3D" parent="Rocks"]
+position = Vector3(-4.8, 0.4, -0.2)
+rotation_degrees = Vector3(-6, -22, 11)
+scale = Vector3(0.8, 0.48, 0.65)
+mesh = SubResource("Mesh_rock")
+material_override = SubResource("Material_stone")
+
+[node name="RockFar" type="MeshInstance3D" parent="Rocks"]
+position = Vector3(7.1, 0.55, -5.0)
+rotation_degrees = Vector3(8, 44, 4)
+scale = Vector3(1.15, 0.62, 0.9)
+mesh = SubResource("Mesh_rock")
+material_override = SubResource("Material_stone")
+
+[node name="Vegetation" type="Node3D" parent="."]
+
+[node name="TreeA" type="Node3D" parent="Vegetation"]
+position = Vector3(-8, 0, -5)
+
+[node name="Trunk" type="MeshInstance3D" parent="Vegetation/TreeA"]
+position = Vector3(0, 1.8, 0)
+mesh = SubResource("Mesh_trunk")
+material_override = SubResource("Material_stone")
+
+[node name="CanopyLower" type="MeshInstance3D" parent="Vegetation/TreeA"]
+position = Vector3(0, 4.0, 0)
+scale = Vector3(1.25, 0.95, 1.05)
+mesh = SubResource("Mesh_canopy")
+material_override = SubResource("Material_vegetation")
+
+[node name="CanopyUpper" type="MeshInstance3D" parent="Vegetation/TreeA"]
+position = Vector3(0.3, 5.15, -0.1)
+scale = Vector3(0.78, 0.72, 0.78)
+mesh = SubResource("Mesh_canopy")
+material_override = SubResource("Material_vegetation")
+
+[node name="TreeB" type="Node3D" parent="Vegetation"]
+position = Vector3(8.6, 0, 3.8)
+scale = Vector3(0.82, 0.82, 0.82)
+
+[node name="Trunk" type="MeshInstance3D" parent="Vegetation/TreeB"]
+position = Vector3(0, 1.8, 0)
+mesh = SubResource("Mesh_trunk")
+material_override = SubResource("Material_stone")
+
+[node name="CanopyLower" type="MeshInstance3D" parent="Vegetation/TreeB"]
+position = Vector3(0, 4.0, 0)
+scale = Vector3(1.25, 0.95, 1.05)
+mesh = SubResource("Mesh_canopy")
+material_override = SubResource("Material_vegetation")
+
+[node name="CanopyUpper" type="MeshInstance3D" parent="Vegetation/TreeB"]
+position = Vector3(-0.25, 5.1, 0.05)
+scale = Vector3(0.75, 0.7, 0.75)
+mesh = SubResource("Mesh_canopy")
+material_override = SubResource("Material_vegetation")
+
+[node name="ShrubA" type="MeshInstance3D" parent="Vegetation"]
+position = Vector3(-5.1, 0.55, 3.7)
+scale = Vector3(0.9, 0.48, 0.72)
+mesh = SubResource("Mesh_canopy")
+material_override = SubResource("Material_vegetation")
+
+[node name="ShrubB" type="MeshInstance3D" parent="Vegetation"]
+position = Vector3(6.2, 0.45, 0.4)
+scale = Vector3(0.65, 0.38, 0.8)
+mesh = SubResource("Mesh_canopy")
+material_override = SubResource("Material_vegetation")
+
+[node name="Architecture" type="Node3D" parent="."]
+position = Vector3(0, 0, -7.2)
+
+[node name="PillarLeft" type="MeshInstance3D" parent="Architecture"]
+position = Vector3(-2.15, 1.9, 0)
+mesh = SubResource("Mesh_arch_pillar")
+material_override = SubResource("Material_architecture")
+
+[node name="PillarRight" type="MeshInstance3D" parent="Architecture"]
+position = Vector3(2.15, 1.9, 0)
+mesh = SubResource("Mesh_arch_pillar")
+material_override = SubResource("Material_architecture")
+
+[node name="Lintel" type="MeshInstance3D" parent="Architecture"]
+position = Vector3(0, 4.0, 0)
+mesh = SubResource("Mesh_arch_lintel")
+material_override = SubResource("Material_architecture")
+
+[node name="CrownLeft" type="MeshInstance3D" parent="Architecture"]
+position = Vector3(-1.25, 4.65, 0)
+rotation_degrees = Vector3(0, 0, -18)
+scale = Vector3(0.55, 0.65, 0.8)
+mesh = SubResource("Mesh_crystal")
+material_override = SubResource("Material_vegetation")
+
+[node name="CrownRight" type="MeshInstance3D" parent="Architecture"]
+position = Vector3(1.25, 4.65, 0)
+rotation_degrees = Vector3(0, 0, 18)
+scale = Vector3(0.55, 0.65, 0.8)
+mesh = SubResource("Mesh_crystal")
+material_override = SubResource("Material_vegetation")
+
+[node name="PlayerScaleProxy" type="Node3D" parent="."]
+position = Vector3(-1.25, 0, 2.4)
+
+[node name="Body" type="MeshInstance3D" parent="PlayerScaleProxy"]
+position = Vector3(0, 0.83, 0)
+scale = Vector3(1.05, 1.0, 0.82)
+mesh = SubResource("Mesh_player_body")
+material_override = SubResource("Material_player")
+
+[node name="Head" type="MeshInstance3D" parent="PlayerScaleProxy"]
+position = Vector3(0, 1.72, 0)
+mesh = SubResource("Mesh_player_head")
+material_override = SubResource("Material_player")
+
+[node name="FacingAccent" type="MeshInstance3D" parent="PlayerScaleProxy"]
+position = Vector3(0, 1.15, -0.38)
+rotation_degrees = Vector3(90, 0, 0)
+mesh = SubResource("Mesh_facing_wedge")
+material_override = SubResource("Material_player_accent")
+
+[node name="ScaleBar" type="MeshInstance3D" parent="PlayerScaleProxy"]
+position = Vector3(-0.75, 1, 0)
+mesh = SubResource("Mesh_scale_bar")
+material_override = SubResource("Material_architecture")
+
+[node name="ScaleLabel" type="Label3D" parent="PlayerScaleProxy"]
+position = Vector3(-0.75, 2.3, 0)
+text = "2 m"
+font_size = 28
+outline_size = 8
+modulate = Color(0.95, 0.9, 0.75, 1)
+
+[node name="MonsterScaleProxy" type="Node3D" parent="."]
+position = Vector3(2.0, 0, 0.7)
+rotation_degrees = Vector3(0, -22, 0)
+
+[node name="Body" type="MeshInstance3D" parent="MonsterScaleProxy"]
+position = Vector3(0, 0.58, 0)
+scale = Vector3(1.25, 0.72, 1.55)
+mesh = SubResource("Mesh_monster_body")
+material_override = SubResource("Material_monster")
+
+[node name="CrystalCenter" type="MeshInstance3D" parent="MonsterScaleProxy"]
+position = Vector3(0, 1.28, 0.05)
+rotation_degrees = Vector3(0, 0, -7)
+mesh = SubResource("Mesh_crystal")
+material_override = SubResource("Material_monster_accent")
+
+[node name="CrystalLeft" type="MeshInstance3D" parent="MonsterScaleProxy"]
+position = Vector3(-0.48, 1.05, 0.08)
+rotation_degrees = Vector3(8, 0, -32)
+scale = Vector3(0.72, 0.72, 0.72)
+mesh = SubResource("Mesh_crystal")
+material_override = SubResource("Material_monster_accent")
+
+[node name="CrystalRight" type="MeshInstance3D" parent="MonsterScaleProxy"]
+position = Vector3(0.48, 1.05, 0.08)
+rotation_degrees = Vector3(-8, 0, 32)
+scale = Vector3(0.72, 0.72, 0.72)
+mesh = SubResource("Mesh_crystal")
+material_override = SubResource("Material_monster_accent")
+
+[node name="Title" type="Label" parent="."]
+offset_left = 24.0
+offset_top = 20.0
+offset_right = 560.0
+offset_bottom = 78.0
+theme_override_colors/font_color = Color(0.94, 0.88, 0.7, 1)
+theme_override_colors/font_shadow_color = Color(0.04, 0.06, 0.07, 0.9)
+theme_override_constants/shadow_offset_x = 2
+theme_override_constants/shadow_offset_y = 2
+theme_override_font_sizes/font_size = 22
+text = "AETHERFALL — WIND-WORN UPLAND\nVIS-001 · ORIGINAL PROCEDURAL LOOKDEV"
+
+[node name="Legend" type="Label" parent="."]
+offset_left = 24.0
+offset_top = 650.0
+offset_right = 700.0
+offset_bottom = 704.0
+theme_override_colors/font_color = Color(0.86, 0.9, 0.88, 1)
+theme_override_colors/font_shadow_color = Color(0.03, 0.04, 0.04, 0.9)
+theme_override_constants/shadow_offset_x = 2
+theme_override_constants/shadow_offset_y = 2
+theme_override_font_sizes/font_size = 16
+text = "Warm path · cool vegetation · bright player · low violet hostile\nRMB orbit · mouse wheel zoom"

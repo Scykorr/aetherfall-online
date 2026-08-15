@@ -19,6 +19,7 @@ func _run() -> void:
     _confirmed_target_replicates()
     _basic_attack_input_exists()
     _monster_lifecycle_snapshot()
+    _player_hp_snapshot()
     print("[TEST SUMMARY] passed=%d failed=%d skipped=0 total=%d" % [_passed, _failed, _passed + _failed])
     call_deferred("_finish")
 
@@ -33,6 +34,8 @@ func _snapshot(tick: int, entity_ids: Array[int]) -> Dictionary:
             "movement_mode": "STOP",
             "last_processed_input_sequence": 0,
             "current_target_entity_id": 0,
+            "current_hp": 100,
+            "max_hp": 100,
         })
     return {"server_tick": tick, "entities": entities}
 
@@ -128,3 +131,13 @@ func _monster_lifecycle_snapshot() -> void:
     var alive := _monster_snapshot(111)
     store.apply_snapshot(alive)
     _check("RESPAWN-NET-001 alive state replaces dead state", store.get_state(1).life_state == "ALIVE" and store.get_state(1).current_hp == 100)
+
+func _player_hp_snapshot() -> void:
+    var store = SNAPSHOT_STORE_SCRIPT.new()
+    var snapshot := _snapshot(120, [7])
+    snapshot.entities[0].current_hp = 60
+    store.apply_snapshot(snapshot)
+    _check(
+        "PHP-006 authoritative HP replicates",
+        store.get_state(7).current_hp == 60 and store.get_state(7).max_hp == 100
+    )

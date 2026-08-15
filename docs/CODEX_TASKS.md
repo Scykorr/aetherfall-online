@@ -205,4 +205,22 @@ Acceptance:
 
 Non-goals: loot, XP, monster attacks, persistence and animation systems.
 
+## TASK-009 — Server-Authoritative Monster Aggro, Chase & Basic Attack
+
+Status: In Progress (implementation, automated tests and local integration complete; remote CI confirmation pending).
+
+Goal: turn the training monster into the first server-authoritative hostile PvE entity.
+
+Acceptance:
+- living monsters acquire the nearest valid player on deterministic server ticks and keep that target until invalidated;
+- authoritative AI transitions through `IDLE`, `WANDER`, `CHASE`, `ATTACK`, `RETURN` and `DEAD`;
+- chase, attack range, cooldown, damage and leash use only server-owned positions, ticks and template data;
+- monster attacks use the shared `CombatSystem` event boundary;
+- player HP is initialized, mutated and replicated server-side with a temporary floor of `1`;
+- leash clears aggro, returns the monster to spawn and restores HP before normal idle/wander resumes;
+- death interrupts aggro, movement and attacks, while respawn restores clean initial AI state;
+- deterministic automated tests and one-server/two-client combat, leash and lifecycle integrations pass.
+
+Non-goals: player death/respawn, threat tables, loot, XP, skills, animations, VFX and sound.
+
 STOP after each task and request review before starting the next task.

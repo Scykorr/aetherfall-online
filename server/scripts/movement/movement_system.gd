@@ -170,6 +170,12 @@ func get_state(entity_id: int) -> Dictionary:
 func get_player_count() -> int:
     return _states.size()
 
+func get_player_ids() -> Array[int]:
+    var ids: Array[int] = []
+    ids.assign(_states.keys())
+    ids.sort()
+    return ids
+
 func clear() -> void:
     _states.clear()
 

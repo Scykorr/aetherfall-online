@@ -10,5 +10,13 @@
     "idle_seconds": 1.0
   },
   "behavior": "training_passive",
-  "respawn_seconds": 5.0
+  "respawn_seconds": 5.0,
+  "combat": {
+    "aggro_range": 7.0,
+    "attack_range": 1.5,
+    "attack_damage": 10,
+    "attack_cooldown": 1.0,
+    "leash_range": 10.0,
+    "return_speed": 3.5
+  }
 }

@@ -21,6 +21,8 @@ var _cooldown_ticks: int
 var _simulation_tick_rate: int
 var _player_states: Dictionary = {}
 var _events: Array[Dictionary] = []
+var _player_health: RefCounted
+var _monster_next_attack_tick: Dictionary = {}
 
 func _init(
     sessions: Node,
@@ -31,7 +33,8 @@ func _init(
     damage: int,
     attack_range: float,
     cooldown_seconds: float,
-    simulation_tick_rate: int
+    simulation_tick_rate: int,
+    player_health: RefCounted = null
 ) -> void:
     _sessions = sessions
     _entities = entities
@@ -42,6 +45,7 @@ func _init(
     _range = maxf(0.0, attack_range)
     _cooldown_ticks = maxi(1, int(ceil(cooldown_seconds * simulation_tick_rate)))
     _simulation_tick_rate = simulation_tick_rate
+    _player_health = player_health
 
 func process_attack(peer_id: int, payload: Variant, current_tick: int) -> Dictionary:
     var session: Dictionary = _sessions.get_session(peer_id)
@@ -109,6 +113,47 @@ func process_attack(peer_id: int, payload: Variant, current_tick: int) -> Dictio
 func remove_player(player_entity_id: int) -> void:
     _player_states.erase(player_entity_id)
 
+func process_monster_attack(
+    attacker_entity_id: int,
+    target_entity_id: int,
+    current_tick: int
+) -> Dictionary:
+    if _player_health == null:
+        return _rejected(INVALID_TARGET)
+    var attacker: Dictionary = _monsters.get_state(attacker_entity_id)
+    var target: Dictionary = _movement.get_state(target_entity_id)
+    if (
+        attacker.is_empty() or target.is_empty()
+        or attacker.get("life_state") != &"ALIVE"
+        or attacker.get("aggro_target_entity_id", 0) != target_entity_id
+        or attacker.get("movement_state") != &"ATTACK"
+    ):
+        return _rejected(INVALID_TARGET)
+    if attacker.position.distance_to(target.position) > float(attacker["attack_range"]):
+        return _rejected(OUT_OF_RANGE)
+    if current_tick < int(_monster_next_attack_tick.get(attacker_entity_id, 0)):
+        return _rejected(COOLDOWN)
+    var damage: int = int(attacker["attack_damage"])
+    var damage_result: Dictionary = _player_health.apply_server_damage(target_entity_id, damage)
+    if not damage_result["applied"]:
+        return _rejected(INVALID_TARGET)
+    _monster_next_attack_tick[attacker_entity_id] = current_tick + maxi(
+        1,
+        int(ceil(float(attacker["attack_cooldown"]) * _simulation_tick_rate))
+    )
+    var event := {
+        "result_type": "HIT",
+        "server_tick": current_tick,
+        "attacker_entity_id": attacker_entity_id,
+        "target_entity_id": target_entity_id,
+        "damage": damage,
+        "target_current_hp": damage_result["current_hp"],
+        "attack_sequence": 0,
+        "target_died": false,
+    }
+    _events.append(event)
+    return {"accepted": true, "reason": OK, "event": event}
+
 func get_event_count() -> int:
     return _events.size()
 
@@ -118,6 +163,7 @@ func get_events() -> Array[Dictionary]:
 func clear() -> void:
     _player_states.clear()
     _events.clear()
+    _monster_next_attack_tick.clear()
 
 func _calculate_basic_attack_damage() -> int:
     return _damage

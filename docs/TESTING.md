@@ -18,7 +18,7 @@ Run client snapshot ordering tests:
 godot --headless --path client --script tests/network_snapshot_test.gd
 ```
 
-Both commands are non-interactive and return exit code `0` only when every test passes. They cover entity/session cleanup, protocol validation, authoritative movement, ownership, malformed vectors, anti-teleport behavior, deterministic monster AI, monster HP/ownership/lifecycle, targeting security, combat range/cooldown/replay/security and snapshot ordering/despawn/death/respawn.
+Both commands are non-interactive and return exit code `0` only when every test passes. They cover entity/session cleanup, protocol validation, authoritative movement, ownership, malformed vectors, anti-teleport behavior, deterministic monster aggro/chase/attack/leash/return, monster HP/ownership/lifecycle, authoritative player HP, targeting security, combat range/cooldown/replay/security and snapshot ordering/despawn/death/respawn.
 
 ## Continuous integration
 
@@ -69,6 +69,8 @@ For repeatable headless targeting transport checks, one client may use `--target
 TASK-008B uses the `basic_attack` Input Map action (`Space`). Basic attacks are allowed while moving. Headless combat transport modes are `--combat-test=single`, `--combat-test=cooldown` and `--combat-test=out-of-range`; they select the first monster and exercise only their named scenario. All hooks are disabled by default. Combat events are authoritative; TASK-008C replaced TASK-008B's historical HP floor with the lifecycle described below.
 
 TASK-008C removes the temporary HP floor. Training Wisp death and respawn use authoritative server ticks and a delay from its shared template. The server retains the same runtime entity ID, clears all player targets on death and emits reliable `DIED`/`RESPAWNED` lifecycle events. Use `--combat-test=lifecycle` on one headless client to chase and defeat the monster, observe respawn, explicitly retarget it and attack again; run a second ordinary client to verify it receives identical lifecycle events. This development hook is disabled by default.
+
+TASK-009 makes Training Wisp AI server-authoritative. `--ai-test=observe` logs replicated AI state/aggro transitions and authoritative local player HP without changing gameplay. Combine it with `--movement-test=leash` to move a test player outside the leash and observe `CHASE -> RETURN -> IDLE`. The existing `--combat-test=lifecycle` scenario also validates that death interrupts monster combat and respawn restores clean AI. Run a second `--ai-test=observe` client to compare the same combat events and AI states. Player HP is temporarily clamped to `1`; player death belongs to TASK-010. All hooks are disabled by default.
 
 ## Test categories
 
