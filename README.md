@@ -32,3 +32,14 @@ The first playable milestone proves:
 5. Start backend with `docker compose -f backend/docker-compose.yml up -d`.
 
 Read `AGENTS.md` before using Codex. See [`docs/TESTING.md`](docs/TESTING.md) for automated and local integration test commands.
+
+## Local multiplayer on Windows
+
+Set the path to Godot 4.7.1 once in the current PowerShell session, then start one headless server and two independent clients:
+
+```powershell
+$env:GODOT_BIN = "C:\path\to\Godot_v4.7.1-stable_win64.exe"
+.\tools\run_local_multiplayer.ps1
+```
+
+If `godot` is already available in `PATH`, the `GODOT_BIN` line is not required. Separate server/client commands, custom ports and automated test commands are documented in [`docs/TESTING.md`](docs/TESTING.md).

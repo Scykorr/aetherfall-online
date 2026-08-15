@@ -24,6 +24,28 @@ GitHub Actions runs both suites on every push and pull request using Godot 4.7.1
 
 ## Local integration test
 
+For the standard Windows multiplayer workflow, set `GODOT_BIN` to the Godot executable (or make `godot` available in `PATH`) and run:
+
+```powershell
+$env:GODOT_BIN = "C:\path\to\Godot_v4.7.1-stable_win64.exe"
+.\tools\run_local_multiplayer.ps1
+```
+
+The launcher starts a headless server, waits two seconds, and opens two independent clients on `127.0.0.1:7777`. Close both client windows (or press `Ctrl+C` in the launcher terminal) to stop the server started by the script. Use an isolated port when needed:
+
+```powershell
+.\tools\run_local_multiplayer.ps1 -Port 7840
+```
+
+The same discovery rules and port option are available for separate terminals:
+
+```powershell
+.\tools\run_server.ps1 -Port 7777
+.\tools\run_client.ps1 -HostAddress 127.0.0.1 -Port 7777
+```
+
+If local PowerShell policy blocks repository scripts, invoke them with `powershell -ExecutionPolicy Bypass -File .\tools\run_local_multiplayer.ps1`.
+
 Start the zone server:
 
 ```powershell
