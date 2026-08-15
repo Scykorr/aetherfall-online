@@ -16,7 +16,7 @@ Run client snapshot ordering tests:
 godot --headless --path client --script tests/network_snapshot_test.gd
 ```
 
-Both commands are non-interactive and return exit code `0` only when every test passes. They cover entity/session cleanup, protocol validation, authoritative movement, ownership, malformed vectors, anti-teleport behavior and snapshot ordering/despawn.
+Both commands are non-interactive and return exit code `0` only when every test passes. They cover entity/session cleanup, protocol validation, authoritative movement, ownership, malformed vectors, anti-teleport behavior, deterministic monster AI, monster HP/ownership and snapshot ordering/despawn.
 
 ## Continuous integration
 
@@ -35,6 +35,8 @@ Then run two instances of the client project. Both automatically connect to `127
 Development arguments support isolated tests, including `--network-port=<port>`, `--protocol-version=<version>`, `--duplicate-handshake`, `--malformed-handshake`, `--skip-handshake` and `--shutdown-after=<seconds>`.
 
 TASK-006 headless integration clients may additionally use `--movement-test=move_to_point` or `--movement-test=follow_cursor`. These hooks are disabled by default and exist only for repeatable local acceptance testing.
+
+TASK-007 monster despawn can be exercised with the server argument `--despawn-monster-after=<seconds>`. The default is disabled.
 
 ## Test categories
 

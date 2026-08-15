@@ -5,5 +5,9 @@
     "max_hp": 100,
     "move_speed": 2.5
   },
+  "wander": {
+    "radius": 3.0,
+    "idle_seconds": 1.0
+  },
   "behavior": "training_passive"
 }

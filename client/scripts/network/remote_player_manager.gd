@@ -1,10 +1,13 @@
 class_name RemotePlayerManager
 extends Node
 
+const MONSTER_SCENE: PackedScene = preload("res://scenes/actors/monster_placeholder.tscn")
+
 @export var local_player: CharacterBody3D
 @export var interpolation_speed: float = 12.0
 
 var _remote_players: Dictionary = {}
+var _monsters: Dictionary = {}
 var _target_positions: Dictionary = {}
 
 func _ready() -> void:
@@ -20,24 +23,40 @@ func _process(delta: float) -> void:
         elif _remote_players.has(entity_id):
             var remote: Node3D = _remote_players[entity_id]
             remote.global_position = remote.global_position.lerp(target, weight)
+        elif _monsters.has(entity_id):
+            var monster: Node3D = _monsters[entity_id]
+            monster.global_position = monster.global_position.lerp(target, weight)
 
 func get_remote_count() -> int:
     return _remote_players.size()
 
+func get_monster_count() -> int:
+    return _monsters.size()
+
 func _on_snapshot_received(snapshot: Dictionary) -> void:
     var present: Dictionary = {}
-    for player: Dictionary in snapshot["players"]:
-        var entity_id: int = player["entity_id"]
+    for entity: Dictionary in snapshot["entities"]:
+        var entity_id: int = entity["entity_id"]
         present[entity_id] = true
-        _target_positions[entity_id] = player["position"]
-        if entity_id != Network.assigned_entity_id and not _remote_players.has(entity_id):
-            _spawn_remote(entity_id, player["position"])
+        _target_positions[entity_id] = entity["position"]
+        if entity["entity_type"] == "monster":
+            if not _monsters.has(entity_id):
+                _spawn_monster(entity)
+            (_monsters[entity_id] as Node).call("apply_state", entity)
+        elif entity_id != Network.assigned_entity_id and not _remote_players.has(entity_id):
+            _spawn_remote(entity_id, entity["position"])
     for entity_id: int in _remote_players.keys():
         if not present.has(entity_id):
             _remote_players[entity_id].queue_free()
             _remote_players.erase(entity_id)
             _target_positions.erase(entity_id)
             print("[Aetherfall Client] Remote despawned: entity=%d" % entity_id)
+    for entity_id: int in _monsters.keys():
+        if not present.has(entity_id):
+            _monsters[entity_id].queue_free()
+            _monsters.erase(entity_id)
+            _target_positions.erase(entity_id)
+            print("[Aetherfall Client] Monster despawned: entity=%d" % entity_id)
 
 func _spawn_remote(entity_id: int, position: Vector3) -> void:
     var remote := Node3D.new()
@@ -53,3 +72,18 @@ func _spawn_remote(entity_id: int, position: Vector3) -> void:
     add_child(remote)
     _remote_players[entity_id] = remote
     print("[Aetherfall Client] Remote spawned: entity=%d" % entity_id)
+
+func _spawn_monster(state: Dictionary) -> void:
+    var monster := MONSTER_SCENE.instantiate() as Node3D
+    monster.name = "Monster%d" % state["entity_id"]
+    monster.position = state["position"]
+    add_child(monster)
+    _monsters[state["entity_id"]] = monster
+    print(
+        "[Aetherfall Client] Monster spawned: entity=%d template=%s hp=%d/%d" % [
+            state["entity_id"],
+            state["template_id"],
+            state["current_hp"],
+            state["max_hp"],
+        ]
+    )

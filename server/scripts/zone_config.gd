@@ -10,6 +10,10 @@ extends Resource
 @export_range(1.0, 30.0, 0.5) var handshake_timeout_seconds: float = 5.0
 @export_range(0.1, 20.0, 0.1) var player_move_speed: float = 5.0
 @export_range(1, 30, 1) var snapshot_rate: int = 10
+@export var monster_template_path: String = "shared/data/monsters/training_wisp.json"
+@export var monster_spawn_position: Vector3 = Vector3(6.0, 0.1, -2.0)
+@export var monster_random_seed: int = 1337
+var monster_despawn_after_seconds: float = 0.0
 
 var server_instance_id: String = ""
 

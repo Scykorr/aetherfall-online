@@ -133,6 +133,8 @@ Acceptance:
 
 ## TASK-007 — First server-owned monster
 
+Status: Completed.
+
 Goal: server spawns one training creature.
 
 Acceptance:

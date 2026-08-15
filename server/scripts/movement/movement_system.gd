@@ -112,17 +112,18 @@ func simulate_tick(delta: float) -> void:
         state["position"] += state["velocity"] * delta
 
 func create_snapshot(server_tick: int) -> Dictionary:
-    var players: Array[Dictionary] = []
+    var entities: Array[Dictionary] = []
     for entity_id: int in _states:
         var state: Dictionary = _states[entity_id]
-        players.append({
+        entities.append({
             "entity_id": entity_id,
+            "entity_type": "player",
             "position": state["position"],
             "velocity": state["velocity"],
             "movement_mode": String(state["movement_mode"]),
             "last_processed_input_sequence": state["last_processed_input_sequence"],
         })
-    return {"server_tick": server_tick, "players": players}
+    return {"server_tick": server_tick, "entities": entities}
 
 func remove_player(entity_id: int) -> bool:
     return _states.erase(entity_id)

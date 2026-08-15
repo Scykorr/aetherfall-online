@@ -8,21 +8,24 @@ func apply_snapshot(snapshot: Variant) -> bool:
     if not snapshot is Dictionary:
         return false
     var tick: Variant = snapshot.get("server_tick")
-    var players: Variant = snapshot.get("players")
-    if not tick is int or not players is Array or tick <= latest_server_tick:
+    var entities: Variant = snapshot.get("entities")
+    if not tick is int or not entities is Array or tick <= latest_server_tick:
         return false
     var next_states: Dictionary = {}
-    for player: Variant in players:
-        if not player is Dictionary:
+    for entity: Variant in entities:
+        if not entity is Dictionary:
             return false
-        var entity_id: Variant = player.get("entity_id")
-        var position: Variant = player.get("position")
-        var velocity: Variant = player.get("velocity")
+        var entity_id: Variant = entity.get("entity_id")
+        var entity_type: Variant = entity.get("entity_type")
+        var position: Variant = entity.get("position")
+        var velocity: Variant = entity.get("velocity")
         if not entity_id is int or entity_id <= 0:
+            return false
+        if not entity_type is String or entity_type not in ["player", "monster"]:
             return false
         if not position is Vector3 or not velocity is Vector3:
             return false
-        next_states[entity_id] = player.duplicate(true)
+        next_states[entity_id] = entity.duplicate(true)
     latest_server_tick = tick
     entity_states = next_states
     return true

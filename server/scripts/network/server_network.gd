@@ -3,6 +3,8 @@ extends Node
 const PROTOCOL_VERSION: int = 1
 const HANDSHAKE_SERVICE_SCRIPT: Script = preload("res://scripts/network/handshake_service.gd")
 const MOVEMENT_SYSTEM_SCRIPT: Script = preload("res://scripts/movement/movement_system.gd")
+const MONSTER_TEMPLATE_LOADER_SCRIPT: Script = preload("res://scripts/monsters/monster_template_loader.gd")
+const MONSTER_SYSTEM_SCRIPT: Script = preload("res://scripts/monsters/monster_system.gd")
 
 var _config: ZoneConfig
 var _simulation_clock: SimulationClock
@@ -12,6 +14,8 @@ var _peer: ENetMultiplayerPeer
 var _handshake_service: RefCounted
 var _movement_system: RefCounted
 var _snapshot_interval_ticks: int = 3
+var _monster_system: RefCounted
+var _training_monster_id: int = 0
 
 func start_server(
     config: ZoneConfig,
@@ -32,6 +36,28 @@ func start_server(
         _session_registry,
         _entity_registry,
         _config.player_move_speed
+    )
+    _monster_system = MONSTER_SYSTEM_SCRIPT.new(
+        _entity_registry,
+        _config.monster_random_seed
+    )
+    var monster_template: Dictionary = MONSTER_TEMPLATE_LOADER_SCRIPT.load_template(
+        _config.monster_template_path
+    )
+    _training_monster_id = _monster_system.spawn_monster(
+        monster_template,
+        _config.monster_spawn_position,
+        _simulation_clock.tick_number
+    )
+    if _training_monster_id <= 0:
+        push_error("Cannot load or spawn training monster.")
+        return false
+    print(
+        "[Aetherfall Zone] Monster spawned: entity=%d template=%s position=%s" % [
+            _training_monster_id,
+            monster_template["id"],
+            _config.monster_spawn_position,
+        ]
     )
     _snapshot_interval_ticks = maxi(
         1,
@@ -66,6 +92,8 @@ func stop_server() -> void:
     _peer = null
     if _movement_system != null:
         _movement_system.clear()
+    if _monster_system != null:
+        _monster_system.clear()
 
 @rpc("any_peer", "call_remote", "reliable")
 func request_handshake(payload: Variant) -> void:
@@ -154,8 +182,25 @@ func _on_peer_disconnected(peer_id: int) -> void:
 
 func _on_simulation_tick(current_tick: int, _simulation_delta: float) -> void:
     _movement_system.simulate_tick(_simulation_delta)
+    _monster_system.simulate_tick(_simulation_delta)
     if current_tick % _snapshot_interval_ticks == 0:
-        movement_snapshot.rpc(_movement_system.create_snapshot(current_tick))
+        var player_snapshot: Dictionary = _movement_system.create_snapshot(current_tick)
+        var snapshot: Dictionary = _monster_system.create_world_snapshot(
+            current_tick,
+            player_snapshot["entities"]
+        )
+        movement_snapshot.rpc(snapshot)
+    if (
+        _training_monster_id > 0
+        and _config.monster_despawn_after_seconds > 0.0
+        and current_tick >= int(
+            _config.monster_despawn_after_seconds
+            * float(_config.simulation_tick_rate)
+        )
+    ):
+        if _monster_system.despawn_monster(_training_monster_id):
+            print("[Aetherfall Zone] Monster despawned: entity=%d" % _training_monster_id)
+        _training_monster_id = 0
     for peer_id in _handshake_service.cleanup_expired_sessions(current_tick):
         print(
             "[Aetherfall Zone] Handshake timeout: peer=%d entities=%d sessions=%d" % [

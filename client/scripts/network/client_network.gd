@@ -155,9 +155,15 @@ func movement_snapshot(snapshot: Dictionary) -> void:
     snapshot_received.emit(snapshot)
     if not _movement_test_mode.is_empty() and server_tick % 15 == 0:
         var remote_positions: Array[String] = []
-        for player: Dictionary in snapshot["players"]:
-            if player["entity_id"] != assigned_entity_id:
-                remote_positions.append("%d:%s" % [player["entity_id"], player["position"]])
+        for entity: Dictionary in snapshot["entities"]:
+            if entity["entity_id"] != assigned_entity_id:
+                remote_positions.append(
+                    "%d/%s:%s" % [
+                        entity["entity_id"],
+                        entity["entity_type"],
+                        entity["position"],
+                    ]
+                )
         print(
             "[Aetherfall Client] Movement test snapshot: tick=%d local=%s remotes=%s ack=%d" % [
                 server_tick,

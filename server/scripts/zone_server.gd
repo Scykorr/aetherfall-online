@@ -112,6 +112,11 @@ func _read_development_arguments() -> void:
                 1,
                 65535
             )
+        elif argument.begins_with("--despawn-monster-after="):
+            config.monster_despawn_after_seconds = maxf(
+                0.0,
+                argument.trim_prefix("--despawn-monster-after=").to_float()
+            )
 
 func _should_run_registry_self_test() -> bool:
     return "--registry-self-test" in OS.get_cmdline_user_args()
