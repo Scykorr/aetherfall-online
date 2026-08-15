@@ -12,6 +12,7 @@ enum MovementMode {
 @export var navigation_agent: NavigationAgent3D
 @export var destination_marker: Node3D
 @export var navigation_path_debug: MeshInstance3D
+@export var targeting_controller: Node
 @export_flags_3d_physics var walkable_collision_mask: int = 2
 @export_flags_3d_physics var pointer_collision_mask: int = 0xFFFFFFFF
 @export var arrival_distance: float = 0.25
@@ -38,6 +39,8 @@ func _ready() -> void:
 func _input(event: InputEvent) -> void:
     if event.is_action_pressed("ui_cancel"):
         _primary_held = false
+        if targeting_controller != null and targeting_controller.clear_target():
+            return
         cancel_movement()
         return
 
@@ -47,9 +50,15 @@ func _input(event: InputEvent) -> void:
     if event.is_action_pressed("movement_primary"):
         if _is_pointer_over_ui():
             return
+        _cursor_position = get_viewport().get_mouse_position()
+        if (
+            targeting_controller != null
+            and targeting_controller.try_request_target(_cursor_position)
+        ):
+            _primary_held = false
+            return
         _primary_held = true
         _hold_elapsed = 0.0
-        _cursor_position = get_viewport().get_mouse_position()
     elif event.is_action_released("movement_primary") and _primary_held:
         _primary_held = false
         _cursor_position = get_viewport().get_mouse_position()

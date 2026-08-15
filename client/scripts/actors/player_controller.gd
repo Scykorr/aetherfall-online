@@ -5,7 +5,7 @@ extends CharacterBody3D
 @export var acceleration: float = 18.0
 @export var deceleration: float = 24.0
 @export var rotation_speed: float = 12.0
-@export var movement_controller: MouseMovementController
+@export var movement_controller: Node
 
 var gravity: float = float(
     ProjectSettings.get_setting("physics/3d/default_gravity")

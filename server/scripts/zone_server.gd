@@ -1,11 +1,11 @@
 class_name ZoneServer
 extends Node
 
-@export var config: ZoneConfig
+@export var config: Resource
 
-@onready var simulation_clock: SimulationClock = $SimulationClock
-@onready var entity_registry: EntityRegistry = $EntityRegistry
-@onready var session_registry: SessionRegistry = $SessionRegistry
+@onready var simulation_clock = $SimulationClock
+@onready var entity_registry = $EntityRegistry
+@onready var session_registry = $SessionRegistry
 
 var _health_log_interval_ticks: int = 150
 var _shutdown_after_seconds: float = 0.0
@@ -122,7 +122,7 @@ func _should_run_registry_self_test() -> bool:
     return "--registry-self-test" in OS.get_cmdline_user_args()
 
 func _run_registry_self_test() -> bool:
-    var entity_id := entity_registry.register_entity(
+    var entity_id: int = entity_registry.register_entity(
         &"self_test",
         simulation_clock.tick_number,
         {"purpose": "registry_validation"}
@@ -131,7 +131,7 @@ func _run_registry_self_test() -> bool:
         push_error("EntityRegistry self-test failed to register entity.")
         return false
 
-    var entity := entity_registry.get_entity(entity_id)
+    var entity: Dictionary = entity_registry.get_entity(entity_id)
     if entity.get("entity_id", 0) != entity_id:
         push_error("EntityRegistry self-test failed to fetch entity.")
         return false

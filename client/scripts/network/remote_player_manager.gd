@@ -5,6 +5,8 @@ const MONSTER_SCENE: PackedScene = preload("res://scenes/actors/monster_placehol
 
 @export var local_player: CharacterBody3D
 @export var interpolation_speed: float = 12.0
+@export var target_frame: Control
+@export var target_label: Label
 
 var _remote_players: Dictionary = {}
 var _monsters: Dictionary = {}
@@ -57,6 +59,33 @@ func _on_snapshot_received(snapshot: Dictionary) -> void:
             _monsters.erase(entity_id)
             _target_positions.erase(entity_id)
             print("[Aetherfall Client] Monster despawned: entity=%d" % entity_id)
+    _apply_confirmed_target(snapshot)
+
+func _apply_confirmed_target(snapshot: Dictionary) -> void:
+    var target_id := 0
+    for entity: Dictionary in snapshot["entities"]:
+        if entity["entity_id"] == Network.assigned_entity_id:
+            target_id = entity.get("current_target_entity_id", 0)
+            break
+    for monster_id: int in _monsters:
+        (_monsters[monster_id] as Node).call("set_selected", monster_id == target_id)
+    if target_id <= 0 or not _monsters.has(target_id):
+        target_frame.visible = false
+        return
+    var state: Dictionary = {}
+    for entity: Dictionary in snapshot["entities"]:
+        if entity["entity_id"] == target_id:
+            state = entity
+            break
+    if state.is_empty():
+        target_frame.visible = false
+        return
+    target_label.text = "Training Wisp\nHP %d / %d\nEntity ID: %d" % [
+        state["current_hp"],
+        state["max_hp"],
+        target_id,
+    ]
+    target_frame.visible = true
 
 func _spawn_remote(entity_id: int, position: Vector3) -> void:
     var remote := Node3D.new()

@@ -16,6 +16,7 @@ func _run() -> void:
     _despawn_removes_entity()
     _old_monster_snapshot_ignored()
     _monster_despawn_removes_representation()
+    _confirmed_target_replicates()
     print("[TEST SUMMARY] passed=%d failed=%d skipped=0 total=%d" % [_passed, _failed, _passed + _failed])
     call_deferred("_finish")
 
@@ -29,6 +30,7 @@ func _snapshot(tick: int, entity_ids: Array[int]) -> Dictionary:
             "velocity": Vector3.ZERO,
             "movement_mode": "STOP",
             "last_processed_input_sequence": 0,
+            "current_target_entity_id": 0,
         })
     return {"server_tick": tick, "entities": entities}
 
@@ -98,3 +100,10 @@ func _monster_despawn_removes_representation() -> void:
     store.apply_snapshot(_monster_snapshot(100))
     store.apply_snapshot(_monster_snapshot(101, false))
     _check("MON-NET-006 monster despawn removes state", store.get_state(1).is_empty())
+
+func _confirmed_target_replicates() -> void:
+    var snapshot := _snapshot(102, [2])
+    snapshot.entities[0].current_target_entity_id = 1
+    var store = SNAPSHOT_STORE_SCRIPT.new()
+    store.apply_snapshot(snapshot)
+    _check("TGT-NET-001 confirmed target replicates", store.get_state(2).current_target_entity_id == 1)

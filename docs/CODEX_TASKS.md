@@ -143,6 +143,34 @@ Acceptance:
 - idle/wander is server-side;
 - monster has server-owned HP.
 
+## TASK-008A — Entity Targeting System
+
+Status: In Progress (automated/runtime validation complete; manual LMB and visual acceptance pending).
+
+Goal: add server-authoritative monster targeting without combat.
+
+Acceptance:
+- LMB on a replicated monster requests target selection without starting movement;
+- server validates READY ownership, entity type, existence and selection range;
+- confirmed target state is replicated per player;
+- selected monster shows a procedural ring and authoritative HP frame;
+- clear, disconnect and monster despawn remove target state;
+- automated targeting and existing regression tests pass.
+
+Non-goals: attacks, damage, cooldowns, aggro, PvP targeting and skills.
+
+## TASK-008A-FIX — Diagnose Godot signal 11 startup crash
+
+Status: Completed.
+
+Goal: isolate the local Godot 4.7.1 startup crash, repair project parse regressions and rerun TASK-008A validation.
+
+Result:
+- restricted headless launches could not access Godot AppData/cache directories and crashed before project loading;
+- clean-cache GUI validation exposed global class-cache dependencies in client and server scripts;
+- direct preload/base-node references removed those clean-checkout parse failures;
+- client, editor, recovery mode, server/client suites and two-client network integration run successfully outside the restricted sandbox.
+
 ## TASK-008 — Basic attack
 
 Goal: server-authoritative basic attack.

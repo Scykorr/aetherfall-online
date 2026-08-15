@@ -17,6 +17,7 @@ network_port = 7777
 handshake_timeout_seconds = 5.0
 player_move_speed = 5.0
 snapshot_rate = 10
+target_selection_range = 30.0
 monster_template_path = "shared/data/monsters/training_wisp.json"
 monster_spawn_position = Vector3(6, 0.1, -2)
 monster_random_seed = 1337

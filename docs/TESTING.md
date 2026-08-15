@@ -2,6 +2,8 @@
 
 Use Godot 4.7.1 for all project validation.
 
+Godot must be able to read and write its normal `%APPDATA%\Godot` and `%LOCALAPPDATA%\Godot` directories. A restricted Windows sandbox that denies both paths may crash during headless startup before loading the project; run validation in a normal developer shell in that case.
+
 ## Automated server tests
 
 Run the complete deterministic server suite headlessly:
@@ -16,7 +18,7 @@ Run client snapshot ordering tests:
 godot --headless --path client --script tests/network_snapshot_test.gd
 ```
 
-Both commands are non-interactive and return exit code `0` only when every test passes. They cover entity/session cleanup, protocol validation, authoritative movement, ownership, malformed vectors, anti-teleport behavior, deterministic monster AI, monster HP/ownership and snapshot ordering/despawn.
+Both commands are non-interactive and return exit code `0` only when every test passes. They cover entity/session cleanup, protocol validation, authoritative movement, ownership, malformed vectors, anti-teleport behavior, deterministic monster AI, monster HP/ownership, authoritative targeting security and snapshot ordering/despawn.
 
 ## Continuous integration
 
@@ -59,6 +61,10 @@ Development arguments support isolated tests, including `--network-port=<port>`,
 TASK-006 headless integration clients may additionally use `--movement-test=move_to_point` or `--movement-test=follow_cursor`. These hooks are disabled by default and exist only for repeatable local acceptance testing.
 
 TASK-007 monster despawn can be exercised with the server argument `--despawn-monster-after=<seconds>`. The default is disabled.
+
+TASK-008A manual acceptance uses two clients. Verify that LMB on the monster selects it without movement, shows its ring and server-replicated HP frame, while the other client remains untargeted. Verify ground click, hold-LMB, RMB orbit and wheel zoom independently. Press Escape to clear the confirmed target. Repeat with `--despawn-monster-after=<seconds>` and confirm the ring/frame disappear after server despawn.
+
+For repeatable headless targeting transport checks, one client may use `--target-test=first-monster`. The hook requests the first replicated monster once and logs authoritative target confirmation; it is disabled by default.
 
 ## Test categories
 

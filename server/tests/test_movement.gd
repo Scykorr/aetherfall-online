@@ -22,8 +22,12 @@ func run(suite) -> void:
     _spoofed_ownership(suite)
     _session_ownership(suite)
     _unknown_peer(suite)
+    _obstacle_blocks_player(suite)
+    _obstacle_allows_sliding(suite)
+    _world_boundary_blocks_player(suite)
+    _short_arrival_step_respects_collision(suite)
 
-func _context(two_players: bool = false) -> Dictionary:
+func _context(two_players: bool = false, collision_enabled: bool = false) -> Dictionary:
     var entities = ENTITY_REGISTRY_SCRIPT.new()
     var sessions = SESSION_REGISTRY_SCRIPT.new()
     var handshake = HANDSHAKE_SERVICE_SCRIPT.new(entities, sessions, 1)
@@ -32,7 +36,22 @@ func _context(two_players: bool = false) -> Dictionary:
     if two_players:
         sessions.create_pending_session(3, 0, 100)
         handshake.process_handshake(3, {"protocol_version": 1}, 1)
-    var movement = MOVEMENT_SYSTEM_SCRIPT.new(sessions, entities, 5.0)
+    var blockers: Array[Dictionary] = []
+    var world_half_extent: float = 0.0
+    if collision_enabled:
+        blockers = [
+            {"shape": "box", "center": Vector2(0.0, -4.0), "half_extents": Vector2(1.5, 1.0)},
+        ]
+        world_half_extent = 15.0
+    var movement = MOVEMENT_SYSTEM_SCRIPT.new(
+        sessions,
+        entities,
+        5.0,
+        0.1,
+        blockers,
+        world_half_extent,
+        0.45
+    )
     movement.register_ready_player(2, Vector3.ZERO)
     if two_players:
         movement.register_ready_player(3, Vector3(2.0, 0.0, 0.0))
@@ -142,4 +161,38 @@ func _session_ownership(suite) -> void:
 func _unknown_peer(suite) -> void:
     var c := _context()
     suite.check("OWN-003 unknown peer cannot move", not c.movement.process_intent(404, {"command": "FOLLOW_CURSOR", "sequence": 1, "direction": Vector3.RIGHT}, 1))
+    _free(c)
+
+func _obstacle_blocks_player(suite) -> void:
+    var c := _context(false, true)
+    c.movement.process_intent(2, {"command": "MOVE_TO_POINT", "sequence": 1, "destination": Vector3(0.0, 0.0, -6.0)}, 1)
+    for _tick in 60:
+        c.movement.simulate_tick(1.0 / 30.0)
+    var position: Vector3 = c.movement.get_state(1).position
+    suite.check("COL-001 server prevents obstacle penetration", position.z > -2.56)
+    _free(c)
+
+func _obstacle_allows_sliding(suite) -> void:
+    var c := _context(false, true)
+    c.movement.process_intent(2, {"command": "FOLLOW_CURSOR", "sequence": 1, "direction": Vector3(-0.2, 0.0, -1.0)}, 1)
+    for _tick in 30:
+        c.movement.simulate_tick(1.0 / 30.0)
+    var position: Vector3 = c.movement.get_state(1).position
+    suite.check("COL-002 blocked motion slides along obstacle", position.x < -0.8 and position.z > -2.56)
+    _free(c)
+
+func _world_boundary_blocks_player(suite) -> void:
+    var c := _context(false, true)
+    c.movement.process_intent(2, {"command": "MOVE_TO_POINT", "sequence": 1, "destination": Vector3(30.0, 0.0, 0.0)}, 1)
+    for _tick in 120:
+        c.movement.simulate_tick(1.0 / 30.0)
+    suite.check("COL-003 server enforces zone boundary", c.movement.get_state(1).position.x <= 14.551)
+    _free(c)
+
+func _short_arrival_step_respects_collision(suite) -> void:
+    var c := _context(false, true)
+    c.movement.process_intent(2, {"command": "MOVE_TO_POINT", "sequence": 1, "destination": Vector3(0.0, 0.0, -2.6)}, 1)
+    for _tick in 30:
+        c.movement.simulate_tick(1.0 / 30.0)
+    suite.check("COL-004 arrival step cannot enter obstacle", c.movement.get_state(1).position.z > -2.56)
     _free(c)

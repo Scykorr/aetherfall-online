@@ -38,7 +38,10 @@ Read `AGENTS.md` before using Codex. See [`docs/TESTING.md`](docs/TESTING.md) fo
 Set the path to Godot 4.7.1 once in the current PowerShell session, then start one headless server and two independent clients:
 
 ```powershell
-$env:GODOT_BIN = "C:\path\to\Godot_v4.7.1-stable_win64.exe"
+cd D:\aetherfall_online
+
+$env:GODOT_BIN = "C:\Users\Tony Fedos\Downloads\Godot_v4.7.1-stable_win64.exe\Godot_v4.7.1-stable_win64.exe"
+
 .\tools\run_local_multiplayer.ps1
 ```
 

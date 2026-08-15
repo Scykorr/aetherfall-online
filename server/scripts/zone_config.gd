@@ -10,12 +10,36 @@ extends Resource
 @export_range(1.0, 30.0, 0.5) var handshake_timeout_seconds: float = 5.0
 @export_range(0.1, 20.0, 0.1) var player_move_speed: float = 5.0
 @export_range(1, 30, 1) var snapshot_rate: int = 10
+@export_range(1.0, 100.0, 0.5) var target_selection_range: float = 30.0
 @export var monster_template_path: String = "shared/data/monsters/training_wisp.json"
 @export var monster_spawn_position: Vector3 = Vector3(6.0, 0.1, -2.0)
 @export var monster_random_seed: int = 1337
 var monster_despawn_after_seconds: float = 0.0
 
+const PLAYER_COLLISION_RADIUS: float = 0.45
+const WORLD_HALF_EXTENT: float = 15.0
+
 var server_instance_id: String = ""
+
+func get_movement_blockers() -> Array[Dictionary]:
+    return [
+        {
+            "shape": "box",
+            "center": Vector2(0.0, -4.0),
+            "half_extents": Vector2(1.5, 1.0),
+        },
+        {"shape": "circle", "center": Vector2(5.0, 4.0), "radius": 1.2},
+        {
+            "shape": "box",
+            "center": Vector2(-3.0, 5.0),
+            "half_extents": Vector2(0.75, 3.0),
+        },
+        {
+            "shape": "box",
+            "center": Vector2(0.0, 5.0),
+            "half_extents": Vector2(0.75, 3.0),
+        },
+    ]
 
 func assign_runtime_instance_id() -> void:
     var unix_time := int(Time.get_unix_time_from_system())

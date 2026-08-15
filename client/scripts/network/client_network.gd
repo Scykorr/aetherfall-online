@@ -1,6 +1,7 @@
 extends Node
 
 const SNAPSHOT_STORE_SCRIPT: Script = preload("res://scripts/network/snapshot_store.gd")
+const NETWORK_CONFIG_SCRIPT: Script = preload("res://scripts/network/network_config.gd")
 
 signal state_changed(new_state: ConnectionState)
 signal snapshot_received(snapshot: Dictionary)
@@ -21,8 +22,9 @@ var server_tick: int = 0
 var movement_mode: String = "STOP"
 var last_input_sequence: int = 0
 var last_ack_sequence: int = 0
+var confirmed_target_entity_id: int = 0
 
-var _config := NetworkConfig.new()
+var _config = NETWORK_CONFIG_SCRIPT.new()
 var _peer: ENetMultiplayerPeer
 var _shutdown_after_seconds: float = 0.0
 var _duplicate_handshake: bool = false
@@ -32,6 +34,8 @@ var _snapshot_store = SNAPSHOT_STORE_SCRIPT.new()
 var _last_follow_sent_usec: int = 0
 var _last_follow_direction: Vector3 = Vector3.ZERO
 var _movement_test_mode: String = ""
+var _target_test_first_monster: bool = false
+var _target_test_requested: bool = false
 
 func _ready() -> void:
     _read_development_arguments()
@@ -45,6 +49,7 @@ func connect_to_zone() -> void:
     assigned_entity_id = 0
     zone_id = ""
     server_tick = 0
+    confirmed_target_entity_id = 0
     _peer = ENetMultiplayerPeer.new()
     var error := _peer.create_client(_config.host, _config.port)
     if error != OK:
@@ -104,6 +109,10 @@ func send_stop() -> void:
         "sequence": last_input_sequence,
     })
 
+func request_target(candidate_entity_id: int) -> void:
+    if state == ConnectionState.READY:
+        target_intent.rpc_id(1, candidate_entity_id)
+
 @rpc("any_peer", "call_remote", "reliable")
 func request_handshake(_payload: Variant) -> void:
     pass
@@ -141,6 +150,10 @@ func handshake_rejected(reason: String) -> void:
 func movement_intent(_payload: Variant) -> void:
     pass
 
+@rpc("any_peer", "call_remote", "reliable")
+func target_intent(_candidate_entity_id: Variant) -> void:
+    pass
+
 @rpc("authority", "call_remote", "unreliable_ordered")
 func movement_snapshot(snapshot: Dictionary) -> void:
     if multiplayer.get_remote_sender_id() != MultiplayerPeer.TARGET_PEER_SERVER:
@@ -150,8 +163,28 @@ func movement_snapshot(snapshot: Dictionary) -> void:
     server_tick = _snapshot_store.latest_server_tick
     var local_state: Dictionary = _snapshot_store.get_state(assigned_entity_id)
     if not local_state.is_empty():
+        var previous_target := confirmed_target_entity_id
         movement_mode = local_state["movement_mode"]
         last_ack_sequence = local_state["last_processed_input_sequence"]
+        confirmed_target_entity_id = local_state.get("current_target_entity_id", 0)
+        if previous_target != confirmed_target_entity_id:
+            print(
+                "[Aetherfall Client] Confirmed target: %s" % (
+                    str(confirmed_target_entity_id)
+                    if confirmed_target_entity_id > 0
+                    else "none"
+                )
+            )
+    if _target_test_first_monster and not _target_test_requested:
+        for entity: Dictionary in snapshot["entities"]:
+            if entity["entity_type"] == "monster":
+                _target_test_requested = true
+                request_target(entity["entity_id"])
+                print(
+                    "[Aetherfall Client] Target test requested: %d"
+                    % entity["entity_id"]
+                )
+                break
     snapshot_received.emit(snapshot)
     if not _movement_test_mode.is_empty() and server_tick % 15 == 0:
         var remote_positions: Array[String] = []
@@ -200,7 +233,7 @@ func _is_valid_acceptance(payload: Dictionary) -> bool:
         and payload.get("entity_id", 0) > 0
         and payload.get("zone_id", "") is String
         and payload.get("server_tick", -1) is int
-        and payload.get("protocol_version", 0) == NetworkConfig.PROTOCOL_VERSION
+        and payload.get("protocol_version", 0) == NETWORK_CONFIG_SCRIPT.PROTOCOL_VERSION
     )
 
 func _fail(reason: String) -> void:
@@ -218,6 +251,7 @@ func _disconnect_transport() -> void:
         _peer.close()
     multiplayer.multiplayer_peer = null
     _peer = null
+    confirmed_target_entity_id = 0
 
 func _read_development_arguments() -> void:
     for argument in OS.get_cmdline_user_args():
@@ -237,6 +271,8 @@ func _read_development_arguments() -> void:
             _malformed_handshake = true
         elif argument.begins_with("--movement-test="):
             _movement_test_mode = argument.trim_prefix("--movement-test=")
+        elif argument == "--target-test=first-monster":
+            _target_test_first_monster = true
 
 func _quit_test_client() -> void:
     disconnect_from_zone()

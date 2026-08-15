@@ -5,23 +5,25 @@ const HANDSHAKE_SERVICE_SCRIPT: Script = preload("res://scripts/network/handshak
 const MOVEMENT_SYSTEM_SCRIPT: Script = preload("res://scripts/movement/movement_system.gd")
 const MONSTER_TEMPLATE_LOADER_SCRIPT: Script = preload("res://scripts/monsters/monster_template_loader.gd")
 const MONSTER_SYSTEM_SCRIPT: Script = preload("res://scripts/monsters/monster_system.gd")
+const TARGETING_SYSTEM_SCRIPT: Script = preload("res://scripts/targeting/targeting_system.gd")
 
-var _config: ZoneConfig
-var _simulation_clock: SimulationClock
-var _entity_registry: EntityRegistry
-var _session_registry: SessionRegistry
+var _config: Resource
+var _simulation_clock: Node
+var _entity_registry: Node
+var _session_registry: Node
 var _peer: ENetMultiplayerPeer
 var _handshake_service: RefCounted
 var _movement_system: RefCounted
 var _snapshot_interval_ticks: int = 3
 var _monster_system: RefCounted
 var _training_monster_id: int = 0
+var _targeting_system: RefCounted
 
 func start_server(
-    config: ZoneConfig,
-    simulation_clock: SimulationClock,
-    entity_registry: EntityRegistry,
-    session_registry: SessionRegistry
+    config: Resource,
+    simulation_clock: Node,
+    entity_registry: Node,
+    session_registry: Node
 ) -> bool:
     _config = config
     _simulation_clock = simulation_clock
@@ -35,11 +37,22 @@ func start_server(
     _movement_system = MOVEMENT_SYSTEM_SCRIPT.new(
         _session_registry,
         _entity_registry,
-        _config.player_move_speed
+        _config.player_move_speed,
+        0.1,
+        _config.get_movement_blockers(),
+        _config.WORLD_HALF_EXTENT,
+        _config.PLAYER_COLLISION_RADIUS
     )
     _monster_system = MONSTER_SYSTEM_SCRIPT.new(
         _entity_registry,
         _config.monster_random_seed
+    )
+    _targeting_system = TARGETING_SYSTEM_SCRIPT.new(
+        _session_registry,
+        _entity_registry,
+        _movement_system,
+        _monster_system,
+        _config.target_selection_range
     )
     var monster_template: Dictionary = MONSTER_TEMPLATE_LOADER_SCRIPT.load_template(
         _config.monster_template_path
@@ -94,6 +107,8 @@ func stop_server() -> void:
         _movement_system.clear()
     if _monster_system != null:
         _monster_system.clear()
+    if _targeting_system != null:
+        _targeting_system.clear()
 
 @rpc("any_peer", "call_remote", "reliable")
 func request_handshake(payload: Variant) -> void:
@@ -153,6 +168,14 @@ func movement_intent(payload: Variant) -> void:
 func movement_snapshot(_snapshot: Dictionary) -> void:
     pass
 
+@rpc("any_peer", "call_remote", "reliable")
+func target_intent(candidate_entity_id: Variant) -> void:
+    if multiplayer.is_server():
+        _targeting_system.request_target(
+            multiplayer.get_remote_sender_id(),
+            candidate_entity_id
+        )
+
 func _on_peer_connected(peer_id: int) -> void:
     var timeout_ticks := maxi(
         1,
@@ -166,10 +189,11 @@ func _on_peer_connected(peer_id: int) -> void:
     print("[Aetherfall Zone] Peer connected: %d" % peer_id)
 
 func _on_peer_disconnected(peer_id: int) -> void:
-    var session := _session_registry.get_session(peer_id)
+    var session: Dictionary = _session_registry.get_session(peer_id)
     var controlled_entity_id: int = session.get("entity_id", 0)
     if controlled_entity_id > 0:
         _movement_system.remove_player(controlled_entity_id)
+        _targeting_system.remove_player(controlled_entity_id)
     var entity_id: int = _handshake_service.cleanup_peer(peer_id)
     print(
         "[Aetherfall Zone] Peer disconnected: peer=%d entity=%d entities=%d sessions=%d" % [
@@ -183,8 +207,10 @@ func _on_peer_disconnected(peer_id: int) -> void:
 func _on_simulation_tick(current_tick: int, _simulation_delta: float) -> void:
     _movement_system.simulate_tick(_simulation_delta)
     _monster_system.simulate_tick(_simulation_delta)
+    _targeting_system.cleanup_invalid_targets()
     if current_tick % _snapshot_interval_ticks == 0:
         var player_snapshot: Dictionary = _movement_system.create_snapshot(current_tick)
+        _targeting_system.decorate_player_snapshot(player_snapshot["entities"])
         var snapshot: Dictionary = _monster_system.create_world_snapshot(
             current_tick,
             player_snapshot["entities"]
@@ -198,6 +224,7 @@ func _on_simulation_tick(current_tick: int, _simulation_delta: float) -> void:
             * float(_config.simulation_tick_rate)
         )
     ):
+        _targeting_system.clear_entity_references(_training_monster_id)
         if _monster_system.despawn_monster(_training_monster_id):
             print("[Aetherfall Zone] Monster despawned: entity=%d" % _training_monster_id)
         _training_monster_id = 0

@@ -1,6 +1,9 @@
 class_name MovementSystem
 extends RefCounted
 
+const MOVEMENT_COLLISION_MAP_SCRIPT: Script = preload(
+    "res://scripts/movement/movement_collision_map.gd"
+)
 const MODE_STOP: StringName = &"STOP"
 const MODE_MOVE_TO_POINT: StringName = &"MOVE_TO_POINT"
 const MODE_FOLLOW_CURSOR: StringName = &"FOLLOW_CURSOR"
@@ -10,17 +13,24 @@ var _entities: Node
 var _states: Dictionary = {}
 var _move_speed: float
 var _arrival_distance: float
+var _player_radius: float
+var _collision_map: RefCounted
 
 func _init(
     sessions: Node,
     entities: Node,
     move_speed: float = 5.0,
-    arrival_distance: float = 0.1
+    arrival_distance: float = 0.1,
+    blockers: Array[Dictionary] = [],
+    world_half_extent: float = 0.0,
+    player_radius: float = 0.45
 ) -> void:
     _sessions = sessions
     _entities = entities
     _move_speed = move_speed
     _arrival_distance = arrival_distance
+    _player_radius = player_radius
+    _collision_map = MOVEMENT_COLLISION_MAP_SCRIPT.new(blockers, world_half_extent)
 
 func register_ready_player(peer_id: int, spawn_position: Vector3) -> bool:
     var session: Dictionary = _sessions.get_session(peer_id)
@@ -93,23 +103,47 @@ func simulate_tick(delta: float) -> void:
     for entity_id: int in _states:
         var state: Dictionary = _states[entity_id]
         var direction := Vector3.ZERO
+        var desired_position: Vector3
+        var completing_destination := false
         if state["movement_mode"] == MODE_MOVE_TO_POINT:
             var offset: Vector3 = state["current_destination"] - state["position"]
             offset.y = 0.0
             var max_step: float = state["move_speed"] * delta
             if offset.length() <= maxf(_arrival_distance, max_step):
-                state["position"] += offset
-                state["velocity"] = Vector3.ZERO
-                state["movement_mode"] = MODE_STOP
-                continue
-            direction = offset.normalized()
+                desired_position = state["position"] + offset
+                completing_destination = true
+            else:
+                direction = offset.normalized()
+                desired_position = (
+                    state["position"]
+                    + direction * float(state["move_speed"]) * delta
+                )
         elif state["movement_mode"] == MODE_FOLLOW_CURSOR:
             direction = state["direction"]
+            desired_position = (
+                state["position"]
+                + direction * float(state["move_speed"]) * delta
+            )
         else:
             state["velocity"] = Vector3.ZERO
             continue
-        state["velocity"] = direction * float(state["move_speed"])
-        state["position"] += state["velocity"] * delta
+        var previous_position: Vector3 = state["position"]
+        state["position"] = _collision_map.resolve_motion(
+            previous_position,
+            desired_position,
+            _player_radius
+        )
+        state["velocity"] = (
+            (state["position"] - previous_position) / delta
+            if delta > 0.0
+            else Vector3.ZERO
+        )
+        if (
+            completing_destination
+            and state["position"].is_equal_approx(desired_position)
+        ):
+            state["velocity"] = Vector3.ZERO
+            state["movement_mode"] = MODE_STOP
 
 func create_snapshot(server_tick: int) -> Dictionary:
     var entities: Array[Dictionary] = []
