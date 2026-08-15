@@ -1,0 +1,40 @@
+name: Server Tests
+
+"on":
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  server-tests:
+    name: Godot 4.7.1 headless tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    env:
+      GODOT_RELEASE: 4.7.1-stable
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Install Godot
+        shell: bash
+        run: |
+          set -euo pipefail
+          archive="Godot_v${GODOT_RELEASE}_linux.x86_64.zip"
+          download_url="https://github.com/godotengine/godot-builds/releases/download/${GODOT_RELEASE}/${archive}"
+          curl --fail --location --retry 3 --output godot.zip "${download_url}"
+          unzip -q godot.zip -d .godot-ci
+          chmod +x ".godot-ci/Godot_v${GODOT_RELEASE}_linux.x86_64"
+
+      - name: Run automated server tests
+        shell: bash
+        run: |
+          set -euo pipefail
+          ".godot-ci/Godot_v${GODOT_RELEASE}_linux.x86_64" \
+            --headless \
+            --path server \
+            --script tests/test_runner.gd

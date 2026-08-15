@@ -8,6 +8,8 @@ Use Godot's built-in `ENetMultiplayerPeer` for the first direct client-to-zone-s
 
 The client sends only protocol version during this handshake. The zone server validates version 1, creates the player entity through its authoritative `EntityRegistry`, and returns the server-assigned entity ID. A dedicated session registry maps the real ENet peer ID to that entity.
 
+`SessionRegistry` owns network-session state, while `EntityRegistry` remains limited to runtime entities. Duplicate handshakes are rejected and the existing entity is cleaned up when that peer disconnects.
+
 ## Rationale
 
 ENet is available in Godot 4.7.1 without an additional dependency and is sufficient for local development of the initial authoritative protocol. Separating transport from game readiness prevents a connected peer from becoming a gameplay participant before validation completes.
@@ -17,4 +19,6 @@ ENet is available in Godot 4.7.1 without an additional dependency and is suffici
 - Clients cannot choose runtime entity IDs.
 - Protocol mismatch and malformed or duplicate handshakes are rejected.
 - Pending sessions expire after a configurable timeout.
+- Protocol and session decisions are isolated from ENet transport so critical invariants can be tested deterministically.
+- This is a baseline direct-zone architecture and may evolve as authentication and authoritative gameplay are introduced.
 - Authentication, encryption, persistence and gameplay replication remain future work.

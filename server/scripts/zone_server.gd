@@ -1,8 +1,6 @@
 class_name ZoneServer
 extends Node
 
-const PROTOCOL_VERSION: int = 1
-
 @export var config: ZoneConfig
 
 @onready var simulation_clock: SimulationClock = $SimulationClock
@@ -80,7 +78,7 @@ func _print_startup_log() -> void:
     print("Max players: %d" % config.max_players)
     print("Listen port: %d" % config.network_port)
     print("Server instance: %s" % config.server_instance_id)
-    print("Protocol version: %d" % PROTOCOL_VERSION)
+    print("Protocol version: %d" % Network.PROTOCOL_VERSION)
 
 func _print_health_log() -> void:
     var health_message := (

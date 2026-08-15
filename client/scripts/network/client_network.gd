@@ -11,8 +11,6 @@ enum ConnectionState {
     FAILED,
 }
 
-const PROTOCOL_VERSION: int = 1
-
 var state: ConnectionState = ConnectionState.DISCONNECTED
 var assigned_entity_id: int = 0
 var zone_id: String = ""
@@ -75,8 +73,9 @@ func handshake_accepted(payload: Dictionary) -> void:
     server_tick = payload["server_tick"]
     _set_state(ConnectionState.READY)
     print("[Aetherfall Client] Handshake accepted")
-    print("Entity ID: %d" % assigned_entity_id)
-    print("Zone: %s" % zone_id)
+    print("[Aetherfall Client] Entity ID: %d" % assigned_entity_id)
+    print("[Aetherfall Client] Zone: %s" % zone_id)
+    print("[Aetherfall Client] Network state: READY")
     if _duplicate_handshake:
         request_handshake.rpc_id(1, {"protocol_version": _config.protocol_version})
 
@@ -92,6 +91,7 @@ func _on_connected_to_server() -> void:
     if _skip_handshake:
         return
     _set_state(ConnectionState.HANDSHAKING)
+    print("[Aetherfall Client] Sending handshake protocol=%d" % _config.protocol_version)
     if _malformed_handshake:
         request_handshake.rpc_id(1, {"unexpected_field": true})
     else:
@@ -112,7 +112,7 @@ func _is_valid_acceptance(payload: Dictionary) -> bool:
         and payload.get("entity_id", 0) > 0
         and payload.get("zone_id", "") is String
         and payload.get("server_tick", -1) is int
-        and payload.get("protocol_version", 0) == PROTOCOL_VERSION
+        and payload.get("protocol_version", 0) == NetworkConfig.PROTOCOL_VERSION
     )
 
 func _fail(reason: String) -> void:

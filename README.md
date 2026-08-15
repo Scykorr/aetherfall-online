@@ -31,4 +31,4 @@ The first playable milestone proves:
 4. Use WASD to move the capsule.
 5. Start backend with `docker compose -f backend/docker-compose.yml up -d`.
 
-Read `AGENTS.md` before using Codex.
+Read `AGENTS.md` before using Codex. See [`docs/TESTING.md`](docs/TESTING.md) for automated and local integration test commands.

@@ -107,6 +107,18 @@ Acceptance:
 - malformed handshake rejected;
 - protocol version is explicit.
 
+## TASK-005A — Automated server test CI
+
+Status: Completed.
+
+Goal: run the deterministic Godot server test suite automatically for repository changes.
+
+Acceptance:
+- GitHub Actions runs server tests on every push and pull request;
+- CI uses Godot 4.7.1 in headless, non-interactive mode;
+- a failed automated test produces a failed workflow job;
+- CI configuration does not add a third-party test framework.
+
 ## TASK-006 — Authoritative network movement
 
 Goal: replace local-authoritative movement with input intent + server snapshots.
