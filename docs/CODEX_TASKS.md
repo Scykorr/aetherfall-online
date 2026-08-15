@@ -171,14 +171,38 @@ Result:
 - direct preload/base-node references removed those clean-checkout parse failures;
 - client, editor, recovery mode, server/client suites and two-client network integration run successfully outside the restricted sandbox.
 
-## TASK-008 — Basic attack
+## TASK-008B — Server-Authoritative Basic Attack & Damage
 
-Goal: server-authoritative basic attack.
+Status: In Progress (implementation, automated tests and headless integration complete; manual SPACE input and remote CI confirmation pending).
+
+Goal: add one server-authoritative basic attack against the confirmed monster target.
 
 Acceptance:
-- range/cooldown/alive state validated;
-- client damage values ignored;
-- server computes damage;
-- both clients see identical target HP.
+- `basic_attack` Input Map action sends only a sequenced attack intent;
+- server derives attacker and current target from authoritative session state;
+- server validates target, range, cooldown and replay sequence;
+- server calculates damage, clamps monster HP to 1 and broadcasts a combat result;
+- both clients observe identical damage and authoritative HP;
+- concurrent player attacks do not lose HP updates;
+- existing and combat automated tests pass.
+
+Non-goals: death, respawn, loot, aggro, monster attacks, PvP, skills and animation systems.
+
+## TASK-008C — Death & Respawn
+
+Status: Completed.
+
+Goal: add authoritative death and respawn after the temporary TASK-008B HP floor is removed.
+
+Acceptance:
+- lethal server damage reduces HP to zero and transitions the monster from `ALIVE` to `DEAD` exactly once;
+- the server records the authoritative killer, clears every target reference and stops dead-monster AI;
+- dead monsters cannot be selected or attacked and their client presentation is non-targetable;
+- a data-configured delay schedules respawn from the fixed server tick;
+- respawn reuses the runtime entity ID, restores full HP and returns the monster to its spawn point;
+- reliable lifecycle events and world snapshots give all clients the same death/respawn state;
+- automated lifecycle regressions and a real one-server/two-client integration scenario pass.
+
+Non-goals: loot, XP, monster attacks, persistence and animation systems.
 
 STOP after each task and request review before starting the next task.

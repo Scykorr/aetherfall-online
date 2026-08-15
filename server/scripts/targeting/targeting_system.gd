@@ -43,6 +43,8 @@ func request_target(peer_id: int, candidate: Variant) -> bool:
     var monster_state: Dictionary = _monsters.get_state(candidate_id)
     if player_state.is_empty() or monster_state.is_empty():
         return false
+    if monster_state.get("life_state", &"ALIVE") != &"ALIVE":
+        return false
     if player_state.position.distance_to(monster_state.position) > _selection_range:
         return false
     _targets[player_id] = candidate_id

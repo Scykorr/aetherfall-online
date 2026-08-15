@@ -5,6 +5,9 @@ const NETWORK_CONFIG_SCRIPT: Script = preload("res://scripts/network/network_con
 
 signal state_changed(new_state: ConnectionState)
 signal snapshot_received(snapshot: Dictionary)
+signal combat_event_received(event: Dictionary)
+signal combat_rejection_received(reason: String)
+signal monster_lifecycle_received(event: Dictionary)
 
 enum ConnectionState {
     DISCONNECTED,
@@ -23,6 +26,7 @@ var movement_mode: String = "STOP"
 var last_input_sequence: int = 0
 var last_ack_sequence: int = 0
 var confirmed_target_entity_id: int = 0
+var last_attack_sequence: int = 0
 
 var _config = NETWORK_CONFIG_SCRIPT.new()
 var _peer: ENetMultiplayerPeer
@@ -36,6 +40,19 @@ var _last_follow_direction: Vector3 = Vector3.ZERO
 var _movement_test_mode: String = ""
 var _target_test_first_monster: bool = false
 var _target_test_requested: bool = false
+var _combat_test_mode: String = ""
+var _combat_test_target_requested: bool = false
+var _combat_test_move_requested: bool = false
+var _combat_test_attack_count: int = 0
+var _combat_test_first_attack_tick: int = -1
+var _combat_test_saw_death: bool = false
+var _combat_test_saw_respawn: bool = false
+var _combat_test_last_attack_tick: int = -1000
+var _combat_test_last_chase_tick: int = -1000
+
+func _unhandled_input(event: InputEvent) -> void:
+    if event.is_action_pressed("basic_attack"):
+        request_basic_attack()
 
 func _ready() -> void:
     _read_development_arguments()
@@ -50,6 +67,15 @@ func connect_to_zone() -> void:
     zone_id = ""
     server_tick = 0
     confirmed_target_entity_id = 0
+    last_attack_sequence = 0
+    _combat_test_target_requested = false
+    _combat_test_move_requested = false
+    _combat_test_attack_count = 0
+    _combat_test_first_attack_tick = -1
+    _combat_test_saw_death = false
+    _combat_test_saw_respawn = false
+    _combat_test_last_attack_tick = -1000
+    _combat_test_last_chase_tick = -1000
     _peer = ENetMultiplayerPeer.new()
     var error := _peer.create_client(_config.host, _config.port)
     if error != OK:
@@ -113,6 +139,12 @@ func request_target(candidate_entity_id: int) -> void:
     if state == ConnectionState.READY:
         target_intent.rpc_id(1, candidate_entity_id)
 
+func request_basic_attack() -> void:
+    if state != ConnectionState.READY or confirmed_target_entity_id <= 0:
+        return
+    last_attack_sequence += 1
+    attack_intent.rpc_id(1, {"sequence": last_attack_sequence})
+
 @rpc("any_peer", "call_remote", "reliable")
 func request_handshake(_payload: Variant) -> void:
     pass
@@ -154,6 +186,47 @@ func movement_intent(_payload: Variant) -> void:
 func target_intent(_candidate_entity_id: Variant) -> void:
     pass
 
+@rpc("any_peer", "call_remote", "reliable")
+func attack_intent(_payload: Variant) -> void:
+    pass
+
+@rpc("authority", "call_remote", "reliable")
+func combat_result(event: Dictionary) -> void:
+    combat_event_received.emit(event)
+    print(
+        "[Aetherfall Client] Combat HIT: attacker=%d target=%d damage=%d hp=%d tick=%d sequence=%d" % [
+            event["attacker_entity_id"],
+            event["target_entity_id"],
+            event["damage"],
+            event["target_current_hp"],
+            event["server_tick"],
+            event["attack_sequence"],
+        ]
+    )
+
+@rpc("authority", "call_remote", "reliable")
+func combat_rejected(reason: String) -> void:
+    combat_rejection_received.emit(reason)
+    print("[Aetherfall Client] Combat rejected: %s" % reason)
+
+@rpc("authority", "call_remote", "reliable")
+func monster_lifecycle_event(event: Dictionary) -> void:
+    if event.get("event_type") == "DIED":
+        _combat_test_saw_death = true
+    elif event.get("event_type") == "RESPAWNED":
+        _combat_test_saw_respawn = true
+    monster_lifecycle_received.emit(event)
+    print(
+        "[Aetherfall Client] Monster %s: entity=%d hp=%d/%d tick=%d killer=%d" % [
+            event["event_type"],
+            event["entity_id"],
+            event["current_hp"],
+            event["max_hp"],
+            event["server_tick"],
+            event["killer_entity_id"],
+        ]
+    )
+
 @rpc("authority", "call_remote", "unreliable_ordered")
 func movement_snapshot(snapshot: Dictionary) -> void:
     if multiplayer.get_remote_sender_id() != MultiplayerPeer.TARGET_PEER_SERVER:
@@ -186,6 +259,7 @@ func movement_snapshot(snapshot: Dictionary) -> void:
                 )
                 break
     snapshot_received.emit(snapshot)
+    _run_combat_test(snapshot, local_state)
     if not _movement_test_mode.is_empty() and server_tick % 15 == 0:
         var remote_positions: Array[String] = []
         for entity: Dictionary in snapshot["entities"]:
@@ -273,6 +347,8 @@ func _read_development_arguments() -> void:
             _movement_test_mode = argument.trim_prefix("--movement-test=")
         elif argument == "--target-test=first-monster":
             _target_test_first_monster = true
+        elif argument.begins_with("--combat-test="):
+            _combat_test_mode = argument.trim_prefix("--combat-test=")
 
 func _quit_test_client() -> void:
     disconnect_from_zone()
@@ -284,3 +360,76 @@ func _start_movement_test() -> void:
     elif _movement_test_mode == "follow_cursor":
         send_follow_direction(Vector3.FORWARD, true)
         get_tree().create_timer(3.0).timeout.connect(send_stop)
+
+func _run_combat_test(snapshot: Dictionary, local_state: Dictionary) -> void:
+    if _combat_test_mode.is_empty() or local_state.is_empty():
+        return
+    var monster: Dictionary = {}
+    for entity: Dictionary in snapshot["entities"]:
+        if entity["entity_type"] == "monster":
+            monster = entity
+            break
+    if monster.is_empty():
+        return
+    if _combat_test_mode == "lifecycle" and monster.get("life_state") == "DEAD":
+        return
+    if (
+        _combat_test_mode == "lifecycle"
+        and _combat_test_saw_respawn
+        and confirmed_target_entity_id <= 0
+    ):
+        _combat_test_saw_respawn = false
+        request_target(monster["entity_id"])
+        print("[Aetherfall Client] Lifecycle test retarget requested after respawn")
+        return
+    if not _combat_test_target_requested:
+        _combat_test_target_requested = true
+        request_target(monster["entity_id"])
+        return
+    if confirmed_target_entity_id <= 0:
+        return
+    if _combat_test_mode == "out-of-range":
+        if _combat_test_attack_count == 0:
+            _combat_test_attack_count = 1
+            request_basic_attack()
+        return
+    var local_position: Vector3 = local_state["position"]
+    var monster_position: Vector3 = monster["position"]
+    if not _combat_test_move_requested:
+        var away := local_position - monster_position
+        away.y = 0.0
+        if away.is_zero_approx():
+            away = Vector3.LEFT
+        _combat_test_move_requested = true
+        send_move_to_point(monster_position + away.normalized() * 1.5)
+        return
+    if local_position.distance_to(monster_position) > 2.4:
+        if (
+            _combat_test_mode == "lifecycle"
+            and server_tick >= _combat_test_last_chase_tick + 15
+        ):
+            _combat_test_last_chase_tick = server_tick
+            send_move_to_point(monster_position)
+        return
+    if _combat_test_attack_count == 0:
+        _combat_test_attack_count = 1
+        _combat_test_first_attack_tick = server_tick
+        _combat_test_last_attack_tick = server_tick
+        request_basic_attack()
+        if _combat_test_mode == "cooldown":
+            _combat_test_attack_count = 2
+            request_basic_attack()
+    elif (
+        _combat_test_mode == "lifecycle"
+        and server_tick >= _combat_test_last_attack_tick + 31
+    ):
+        _combat_test_last_attack_tick = server_tick
+        _combat_test_attack_count += 1
+        request_basic_attack()
+    elif (
+        _combat_test_mode == "cooldown"
+        and _combat_test_attack_count == 2
+        and server_tick >= _combat_test_first_attack_tick + 35
+    ):
+        _combat_test_attack_count = 3
+        request_basic_attack()

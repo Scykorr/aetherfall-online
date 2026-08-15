@@ -14,6 +14,7 @@ func run(suite) -> void:
     _replication_tests(suite)
     _ownership_tests(suite)
     _cleanup_tests(suite)
+    _lifecycle_tests(suite)
 
 func _context(seed: int = 1337) -> Dictionary:
     var entities = ENTITY_REGISTRY_SCRIPT.new()
@@ -114,3 +115,23 @@ func _cleanup_tests(suite) -> void:
         handshake2.cleanup_peer(peer_id)
     suite.check("MON-CLEAN-004 reconnects do not duplicate monster", c2.system.get_monster_count() == 1 and c2.entities.get_entity_count() == 1)
     sessions.free(); sessions2.free(); _free(c); _free(c2)
+
+func _lifecycle_tests(suite) -> void:
+    var c := _context()
+    var original_id: int = c.id
+    var original_position: Vector3 = c.system.get_state(c.id).spawn_position
+    var damage: Dictionary = c.system.apply_server_damage(c.id, 100, 77, 20, 30)
+    var death_events: Array[Dictionary] = c.system.drain_lifecycle_events()
+    c.system.simulate_tick(1.0 / 30.0, 169)
+    suite.check("RESPAWN-001 remains dead before authoritative tick", c.system.get_state(c.id).life_state == &"DEAD")
+    c.system.simulate_tick(1.0 / 30.0, 170)
+    var state: Dictionary = c.system.get_state(c.id)
+    var respawn_events: Array[Dictionary] = c.system.drain_lifecycle_events()
+    suite.check("DEATH-009 exactly one death event", damage.died and death_events.size() == 1 and c.system.drain_lifecycle_events().is_empty())
+    suite.check("RESPAWN-002 same runtime entity ID", state.entity_id == original_id and c.entities.get_entity(original_id).entity_type == &"monster")
+    suite.check("RESPAWN-003 restores full HP", state.life_state == &"ALIVE" and state.current_hp == state.max_hp)
+    suite.check("RESPAWN-004 restores spawn position", state.position == original_position and state.velocity == Vector3.ZERO)
+    suite.check("RESPAWN-005 exactly one respawn event", respawn_events.size() == 1 and respawn_events[0].event_type == "RESPAWNED")
+    c.system.simulate_tick(1.0 / 30.0, 171)
+    suite.check("RESPAWN-006 no duplicate respawn event", c.system.drain_lifecycle_events().is_empty())
+    _free(c)

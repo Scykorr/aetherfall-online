@@ -11,6 +11,7 @@ const MONSTER_SCENE: PackedScene = preload("res://scenes/actors/monster_placehol
 var _remote_players: Dictionary = {}
 var _monsters: Dictionary = {}
 var _target_positions: Dictionary = {}
+var _displayed_target_hp: int = -1
 
 func _ready() -> void:
     Network.snapshot_received.connect(_on_snapshot_received)
@@ -71,6 +72,7 @@ func _apply_confirmed_target(snapshot: Dictionary) -> void:
         (_monsters[monster_id] as Node).call("set_selected", monster_id == target_id)
     if target_id <= 0 or not _monsters.has(target_id):
         target_frame.visible = false
+        _displayed_target_hp = -1
         return
     var state: Dictionary = {}
     for entity: Dictionary in snapshot["entities"]:
@@ -85,6 +87,12 @@ func _apply_confirmed_target(snapshot: Dictionary) -> void:
         state["max_hp"],
         target_id,
     ]
+    if _displayed_target_hp != state["current_hp"]:
+        _displayed_target_hp = state["current_hp"]
+        print(
+            "[Aetherfall Client] Target frame HP: %d / %d"
+            % [state["current_hp"], state["max_hp"]]
+        )
     target_frame.visible = true
 
 func _spawn_remote(entity_id: int, position: Vector3) -> void:

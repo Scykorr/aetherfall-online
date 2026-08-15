@@ -6,6 +6,7 @@ const MOVEMENT_SYSTEM_SCRIPT: Script = preload("res://scripts/movement/movement_
 const MONSTER_TEMPLATE_LOADER_SCRIPT: Script = preload("res://scripts/monsters/monster_template_loader.gd")
 const MONSTER_SYSTEM_SCRIPT: Script = preload("res://scripts/monsters/monster_system.gd")
 const TARGETING_SYSTEM_SCRIPT: Script = preload("res://scripts/targeting/targeting_system.gd")
+const COMBAT_SYSTEM_SCRIPT: Script = preload("res://scripts/combat/combat_system.gd")
 
 var _config: Resource
 var _simulation_clock: Node
@@ -18,6 +19,7 @@ var _snapshot_interval_ticks: int = 3
 var _monster_system: RefCounted
 var _training_monster_id: int = 0
 var _targeting_system: RefCounted
+var _combat_system: RefCounted
 
 func start_server(
     config: Resource,
@@ -53,6 +55,17 @@ func start_server(
         _movement_system,
         _monster_system,
         _config.target_selection_range
+    )
+    _combat_system = COMBAT_SYSTEM_SCRIPT.new(
+        _session_registry,
+        _entity_registry,
+        _movement_system,
+        _monster_system,
+        _targeting_system,
+        _config.basic_attack_damage,
+        _config.basic_attack_range,
+        _config.basic_attack_cooldown_seconds,
+        _config.simulation_tick_rate
     )
     var monster_template: Dictionary = MONSTER_TEMPLATE_LOADER_SCRIPT.load_template(
         _config.monster_template_path
@@ -109,6 +122,8 @@ func stop_server() -> void:
         _monster_system.clear()
     if _targeting_system != null:
         _targeting_system.clear()
+    if _combat_system != null:
+        _combat_system.clear()
 
 @rpc("any_peer", "call_remote", "reliable")
 func request_handshake(payload: Variant) -> void:
@@ -176,6 +191,48 @@ func target_intent(candidate_entity_id: Variant) -> void:
             candidate_entity_id
         )
 
+@rpc("any_peer", "call_remote", "reliable")
+func attack_intent(payload: Variant) -> void:
+    if not multiplayer.is_server():
+        return
+    var peer_id := multiplayer.get_remote_sender_id()
+    var result: Dictionary = _combat_system.process_attack(
+        peer_id,
+        payload,
+        _simulation_clock.tick_number
+    )
+    if result["accepted"]:
+        var event: Dictionary = result["event"]
+        print(
+            "[Aetherfall Zone] Combat HIT: attacker=%d target=%d damage=%d hp=%d tick=%d sequence=%d" % [
+                event["attacker_entity_id"],
+                event["target_entity_id"],
+                event["damage"],
+                event["target_current_hp"],
+                event["server_tick"],
+                event["attack_sequence"],
+            ]
+        )
+        combat_result.rpc(result["event"])
+    else:
+        print(
+            "[Aetherfall Zone] Combat rejected: peer=%d reason=%s"
+            % [peer_id, result["reason"]]
+        )
+        combat_rejected.rpc_id(peer_id, result["reason"])
+
+@rpc("authority", "call_remote", "reliable")
+func combat_result(_event: Dictionary) -> void:
+    pass
+
+@rpc("authority", "call_remote", "reliable")
+func combat_rejected(_reason: String) -> void:
+    pass
+
+@rpc("authority", "call_remote", "reliable")
+func monster_lifecycle_event(_event: Dictionary) -> void:
+    pass
+
 func _on_peer_connected(peer_id: int) -> void:
     var timeout_ticks := maxi(
         1,
@@ -194,6 +251,7 @@ func _on_peer_disconnected(peer_id: int) -> void:
     if controlled_entity_id > 0:
         _movement_system.remove_player(controlled_entity_id)
         _targeting_system.remove_player(controlled_entity_id)
+        _combat_system.remove_player(controlled_entity_id)
     var entity_id: int = _handshake_service.cleanup_peer(peer_id)
     print(
         "[Aetherfall Zone] Peer disconnected: peer=%d entity=%d entities=%d sessions=%d" % [
@@ -206,8 +264,23 @@ func _on_peer_disconnected(peer_id: int) -> void:
 
 func _on_simulation_tick(current_tick: int, _simulation_delta: float) -> void:
     _movement_system.simulate_tick(_simulation_delta)
-    _monster_system.simulate_tick(_simulation_delta)
+    _monster_system.simulate_tick(
+        _simulation_delta,
+        current_tick
+    )
     _targeting_system.cleanup_invalid_targets()
+    for event: Dictionary in _monster_system.drain_lifecycle_events():
+        if event["event_type"] == "DIED":
+            _targeting_system.clear_entity_references(event["entity_id"])
+        print(
+            "[Aetherfall Zone] Monster %s: entity=%d tick=%d killer=%d" % [
+                event["event_type"],
+                event["entity_id"],
+                event["server_tick"],
+                event["killer_entity_id"],
+            ]
+        )
+        monster_lifecycle_event.rpc(event)
     if current_tick % _snapshot_interval_ticks == 0:
         var player_snapshot: Dictionary = _movement_system.create_snapshot(current_tick)
         _targeting_system.decorate_player_snapshot(player_snapshot["entities"])

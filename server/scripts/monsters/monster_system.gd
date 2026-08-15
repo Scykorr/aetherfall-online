@@ -3,10 +3,13 @@ extends RefCounted
 
 const STATE_IDLE: StringName = &"IDLE"
 const STATE_WANDER: StringName = &"WANDER"
+const LIFE_ALIVE: StringName = &"ALIVE"
+const LIFE_DEAD: StringName = &"DEAD"
 
 var _entities: Node
 var _monsters: Dictionary = {}
 var _rng := RandomNumberGenerator.new()
+var _lifecycle_events: Array[Dictionary] = []
 
 func _init(entities: Node, random_seed: int) -> void:
     _entities = entities
@@ -22,7 +25,8 @@ func spawn_monster(template: Dictionary, position: Vector3, created_tick: int) -
     var move_speed := float(stats.get("move_speed", 0.0))
     var wander_radius := float(wander.get("radius", 0.0))
     var idle_seconds := float(wander.get("idle_seconds", 0.0))
-    if template_id.is_empty() or max_hp <= 0 or move_speed <= 0.0:
+    var respawn_seconds := float(template.get("respawn_seconds", 0.0))
+    if template_id.is_empty() or max_hp <= 0 or move_speed <= 0.0 or respawn_seconds < 0.0:
         return 0
     var entity_id: int = _entities.register_entity(
         &"monster",
@@ -44,12 +48,22 @@ func spawn_monster(template: Dictionary, position: Vector3, created_tick: int) -
         "idle_seconds": idle_seconds,
         "idle_elapsed": 0.0,
         "move_speed": move_speed,
+        "life_state": LIFE_ALIVE,
+        "killer_entity_id": 0,
+        "death_tick": -1,
+        "respawn_tick": -1,
+        "respawn_seconds": respawn_seconds,
     }
     return entity_id
 
-func simulate_tick(delta: float) -> void:
+func simulate_tick(delta: float, current_tick: int = -1) -> void:
     for entity_id: int in _monsters:
         var state: Dictionary = _monsters[entity_id]
+        if state["life_state"] == LIFE_DEAD:
+            state["velocity"] = Vector3.ZERO
+            if current_tick >= 0 and current_tick >= int(state["respawn_tick"]):
+                _respawn(state, current_tick)
+            continue
         if state["movement_state"] == STATE_IDLE:
             state["velocity"] = Vector3.ZERO
             state["idle_elapsed"] += delta
@@ -81,6 +95,10 @@ func create_snapshot_entities() -> Array[Dictionary]:
             "movement_state": String(state["movement_state"]),
             "current_hp": state["current_hp"],
             "max_hp": state["max_hp"],
+            "life_state": String(state["life_state"]),
+            "killer_entity_id": state["killer_entity_id"],
+            "death_tick": state["death_tick"],
+            "respawn_tick": state["respawn_tick"],
         })
     return snapshot_entities
 
@@ -103,6 +121,39 @@ func get_state(entity_id: int) -> Dictionary:
         return {}
     return (_monsters[entity_id] as Dictionary).duplicate(true)
 
+func apply_server_damage(
+    entity_id: int,
+    damage: int,
+    attacker_entity_id: int = 0,
+    current_tick: int = 0,
+    tick_rate: int = 30
+) -> Dictionary:
+    if not _monsters.has(entity_id) or damage <= 0:
+        return {"applied": false, "current_hp": 0, "died": false}
+    var state: Dictionary = _monsters[entity_id]
+    if state["life_state"] != LIFE_ALIVE:
+        return {"applied": false, "current_hp": state["current_hp"], "died": false}
+    state["current_hp"] = maxi(0, int(state["current_hp"]) - damage)
+    var died: bool = int(state["current_hp"]) == 0
+    if died:
+        state["life_state"] = LIFE_DEAD
+        state["killer_entity_id"] = attacker_entity_id
+        state["death_tick"] = current_tick
+        state["respawn_tick"] = current_tick + maxi(
+            1,
+            int(ceil(float(state["respawn_seconds"]) * float(tick_rate)))
+        )
+        state["velocity"] = Vector3.ZERO
+        state["movement_state"] = STATE_IDLE
+        var event := _make_lifecycle_event(state, "DIED", current_tick)
+        _lifecycle_events.append(event)
+    return {"applied": true, "current_hp": state["current_hp"], "died": died}
+
+func drain_lifecycle_events() -> Array[Dictionary]:
+    var events := _lifecycle_events.duplicate(true)
+    _lifecycle_events.clear()
+    return events
+
 func get_monster_ids() -> Array[int]:
     var ids: Array[int] = []
     ids.assign(_monsters.keys())
@@ -114,6 +165,32 @@ func get_monster_count() -> int:
 func clear() -> void:
     for entity_id in get_monster_ids():
         despawn_monster(entity_id)
+    _lifecycle_events.clear()
+
+func _respawn(state: Dictionary, current_tick: int) -> void:
+    state["life_state"] = LIFE_ALIVE
+    state["current_hp"] = state["max_hp"]
+    state["position"] = state["spawn_position"]
+    state["velocity"] = Vector3.ZERO
+    state["movement_state"] = STATE_IDLE
+    state["idle_elapsed"] = 0.0
+    state["wander_target"] = state["spawn_position"]
+    state["killer_entity_id"] = 0
+    state["death_tick"] = -1
+    state["respawn_tick"] = -1
+    _lifecycle_events.append(_make_lifecycle_event(state, "RESPAWNED", current_tick))
+
+func _make_lifecycle_event(state: Dictionary, event_type: String, current_tick: int) -> Dictionary:
+    return {
+        "event_type": event_type,
+        "server_tick": current_tick,
+        "entity_id": state["entity_id"],
+        "life_state": String(state["life_state"]),
+        "killer_entity_id": state["killer_entity_id"],
+        "current_hp": state["current_hp"],
+        "max_hp": state["max_hp"],
+        "position": state["position"],
+    }
 
 func _begin_wander(state: Dictionary) -> void:
     var angle := _rng.randf_range(0.0, TAU)

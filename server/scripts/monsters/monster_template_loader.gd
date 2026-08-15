@@ -17,6 +17,7 @@ static func load_template(repository_relative_path: String) -> Dictionary:
         or not _is_number(stats.get("max_hp"))
         or not _is_number(stats.get("move_speed"))
         or not wander is Dictionary
+        or not _is_number(parsed.get("respawn_seconds"))
     ):
         return {}
     return parsed

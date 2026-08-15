@@ -17,6 +17,8 @@ func _run() -> void:
     _old_monster_snapshot_ignored()
     _monster_despawn_removes_representation()
     _confirmed_target_replicates()
+    _basic_attack_input_exists()
+    _monster_lifecycle_snapshot()
     print("[TEST SUMMARY] passed=%d failed=%d skipped=0 total=%d" % [_passed, _failed, _passed + _failed])
     call_deferred("_finish")
 
@@ -83,6 +85,10 @@ func _monster_snapshot(tick: int, include_monster: bool = true) -> Dictionary:
             "movement_state": "IDLE",
             "current_hp": 100,
             "max_hp": 100,
+            "life_state": "ALIVE",
+            "killer_entity_id": 0,
+            "death_tick": -1,
+            "respawn_tick": -1,
         })
     return {"server_tick": tick, "entities": entities}
 
@@ -107,3 +113,18 @@ func _confirmed_target_replicates() -> void:
     var store = SNAPSHOT_STORE_SCRIPT.new()
     store.apply_snapshot(snapshot)
     _check("TGT-NET-001 confirmed target replicates", store.get_state(2).current_target_entity_id == 1)
+
+func _basic_attack_input_exists() -> void:
+    _check("COM-INPUT-001 basic attack uses Input Map", InputMap.has_action("basic_attack"))
+
+func _monster_lifecycle_snapshot() -> void:
+    var store = SNAPSHOT_STORE_SCRIPT.new()
+    var dead := _monster_snapshot(110)
+    dead.entities[0].life_state = "DEAD"
+    dead.entities[0].current_hp = 0
+    dead.entities[0].killer_entity_id = 7
+    store.apply_snapshot(dead)
+    _check("DEATH-NET-001 dead state replicates", store.get_state(1).life_state == "DEAD" and store.get_state(1).current_hp == 0)
+    var alive := _monster_snapshot(111)
+    store.apply_snapshot(alive)
+    _check("RESPAWN-NET-001 alive state replaces dead state", store.get_state(1).life_state == "ALIVE" and store.get_state(1).current_hp == 100)
