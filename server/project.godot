@@ -1,0 +1,14 @@
+; Engine configuration file.
+; Aetherfall Online authoritative zone server.
+
+config_version=5
+
+[application]
+
+config/name="Aetherfall Zone Server"
+run/main_scene="res://scenes/zone_server.tscn"
+config/features=PackedStringArray("4.7")
+
+[physics]
+
+common/physics_ticks_per_second=30

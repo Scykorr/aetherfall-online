@@ -85,6 +85,8 @@ Non-goals: dynamic pathfinding for hold mode, networking, combat, targeting and 
 
 ## TASK-004 — Headless zone server bootstrap
 
+Status: Completed.
+
 Goal: create a minimal Godot headless server project.
 
 Acceptance:
