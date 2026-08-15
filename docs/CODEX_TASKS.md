@@ -4,6 +4,8 @@ Work strictly top-to-bottom unless the human explicitly reprioritizes.
 
 ## TASK-001 — Verify bootstrap client
 
+Status: Completed.
+
 Goal: ensure the committed Godot client opens and runs without script errors.
 
 Acceptance:
@@ -15,6 +17,8 @@ Acceptance:
 Do not add networking.
 
 ## TASK-002 — Player movement polish
+
+Status: Completed.
 
 Goal: improve the existing WASD greybox movement.
 
@@ -28,6 +32,8 @@ Acceptance:
 Non-goal: animation.
 
 ## TASK-003 — Camera feel
+
+Status: Completed.
 
 Goal: make a fixed three-quarter MMORPG camera component.
 
