@@ -41,6 +41,8 @@ Non-goal: free orbit camera.
 
 ## TASK-003A — Mouse Movement Controller
 
+Status: Completed.
+
 Goal: replace WASD runtime movement with classic MMORPG mouse movement while preserving right-mouse camera orbit.
 
 Acceptance:
@@ -54,6 +56,26 @@ Acceptance:
 - right-mouse camera orbit and wheel zoom continue to work independently.
 
 Non-goals: NavMesh, networking, combat, targeting, interaction and animation.
+
+## TASK-003B — Navigation & Pathfinding
+
+Status: Completed.
+
+Goal: add navigation-based click-to-move while preserving responsive direct steering for hold-to-move.
+
+Acceptance:
+- `NavigationRegion3D` uses a baked Godot `NavigationMesh` covering the walkable greybox floor;
+- primitive cube, column and passage obstacles are excluded from navigable paths;
+- the player owns a configured `NavigationAgent3D` child component;
+- `MOVE_TO_POINT` validates destinations and follows agent path positions through the existing character motor;
+- unreachable or obstacle destinations are rejected unless a nearby navigation point is within the configured snap distance;
+- a new click replaces the active path without setting a target every frame;
+- the marker shows the resolved navigation destination and hides when movement ends;
+- optional Godot-only path debug visualization is disabled by default;
+- `FOLLOW_CURSOR`, right-mouse camera orbit and wheel zoom retain their TASK-003A behavior;
+- automated Godot navigation smoke tests cover paths, obstacle rejection, motor movement and path replacement.
+
+Non-goals: dynamic pathfinding for hold mode, networking, combat, targeting and animation.
 
 ## TASK-004 — Headless zone server bootstrap
 

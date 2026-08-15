@@ -1,0 +1,92 @@
+[gd_scene load_steps=12 format=3]
+
+[ext_resource path="res://navigation/greybox_navigation_mesh.tres" type="NavigationMesh" id="1"]
+
+[sub_resource type="StandardMaterial3D" id="GroundMaterial"]
+albedo_color = Color(0.22, 0.32, 0.25, 1)
+roughness = 1.0
+
+[sub_resource type="BoxMesh" id="GroundMesh"]
+size = Vector3(30, 0.2, 30)
+
+[sub_resource type="BoxShape3D" id="GroundShape"]
+size = Vector3(30, 0.2, 30)
+
+[sub_resource type="StandardMaterial3D" id="ObstacleMaterial"]
+albedo_color = Color(0.35, 0.28, 0.24, 1)
+roughness = 0.9
+
+[sub_resource type="BoxMesh" id="CubeMesh"]
+size = Vector3(3, 2, 2)
+
+[sub_resource type="BoxShape3D" id="CubeShape"]
+size = Vector3(3, 2, 2)
+
+[sub_resource type="CylinderMesh" id="ColumnMesh"]
+top_radius = 1.2
+bottom_radius = 1.2
+height = 2.0
+radial_segments = 24
+
+[sub_resource type="CylinderShape3D" id="ColumnShape"]
+radius = 1.2
+height = 2.0
+
+[sub_resource type="BoxMesh" id="PassageWallMesh"]
+size = Vector3(1.5, 2, 6)
+
+[sub_resource type="BoxShape3D" id="PassageWallShape"]
+size = Vector3(1.5, 2, 6)
+
+[node name="NavigationGreybox" type="NavigationRegion3D"]
+navigation_mesh = ExtResource("1")
+
+[node name="Ground" type="StaticBody3D" parent="."]
+collision_layer = 2
+
+[node name="MeshInstance3D" type="MeshInstance3D" parent="Ground"]
+mesh = SubResource("GroundMesh")
+material_override = SubResource("GroundMaterial")
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="Ground"]
+shape = SubResource("GroundShape")
+
+[node name="CubeObstacle" type="StaticBody3D" parent="."]
+position = Vector3(0, 1.1, -4)
+
+[node name="MeshInstance3D" type="MeshInstance3D" parent="CubeObstacle"]
+mesh = SubResource("CubeMesh")
+material_override = SubResource("ObstacleMaterial")
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="CubeObstacle"]
+shape = SubResource("CubeShape")
+
+[node name="ColumnObstacle" type="StaticBody3D" parent="."]
+position = Vector3(5, 1.1, 4)
+
+[node name="MeshInstance3D" type="MeshInstance3D" parent="ColumnObstacle"]
+mesh = SubResource("ColumnMesh")
+material_override = SubResource("ObstacleMaterial")
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="ColumnObstacle"]
+shape = SubResource("ColumnShape")
+
+[node name="PassageWallLeft" type="StaticBody3D" parent="."]
+position = Vector3(-3, 1.1, 5)
+
+[node name="MeshInstance3D" type="MeshInstance3D" parent="PassageWallLeft"]
+mesh = SubResource("PassageWallMesh")
+material_override = SubResource("ObstacleMaterial")
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="PassageWallLeft"]
+shape = SubResource("PassageWallShape")
+
+[node name="PassageWallRight" type="StaticBody3D" parent="."]
+position = Vector3(0, 1.1, 5)
+
+[node name="MeshInstance3D" type="MeshInstance3D" parent="PassageWallRight"]
+mesh = SubResource("PassageWallMesh")
+material_override = SubResource("ObstacleMaterial")
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="PassageWallRight"]
+shape = SubResource("PassageWallShape")
