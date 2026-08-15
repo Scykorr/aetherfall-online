@@ -1,9 +1,10 @@
-[gd_scene load_steps=10 format=3]
+[gd_scene load_steps=11 format=3]
 
 [ext_resource path="res://scenes/actors/player.tscn" type="PackedScene" id="1"]
 [ext_resource path="res://scripts/camera/mmorpg_camera.gd" type="Script" id="2"]
 [ext_resource path="res://scripts/movement/mouse_movement_controller.gd" type="Script" id="3"]
 [ext_resource path="res://scenes/world/navigation_greybox.tscn" type="PackedScene" id="4"]
+[ext_resource path="res://scripts/network/network_debug_hud.gd" type="Script" id="5"]
 
 [sub_resource type="Environment" id="Environment"]
 background_mode = 1
@@ -71,3 +72,11 @@ position = Vector3(0, 9, 10)
 current = true
 script = ExtResource("2")
 target = NodePath("../Player")
+
+[node name="NetworkDebugHud" type="Label" parent="."]
+offset_left = 16.0
+offset_top = 16.0
+offset_right = 220.0
+offset_bottom = 64.0
+text = "Network: DISCONNECTED"
+script = ExtResource("5")

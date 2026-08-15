@@ -50,6 +50,16 @@ After implementation:
 - report known limitations;
 - do not claim something was tested if it was not.
 
+## Testing policy
+
+- Server/network/combat/persistence/economy logic requires automated tests where technically reasonable.
+- Every fixed bug should receive a regression test when possible.
+- Persistence operations must test retries, failures and idempotency.
+- Inventory/currency/item ownership systems must test duplication invariants.
+- Visual/gameplay-feel systems may use manual acceptance testing.
+- Never claim a test passed unless it was actually executed.
+- A task is not complete when required tests are failing.
+
 ## Godot conventions
 
 - Godot 4.x syntax only.

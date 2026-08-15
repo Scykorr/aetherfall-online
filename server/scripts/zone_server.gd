@@ -7,6 +7,7 @@ const PROTOCOL_VERSION: int = 1
 
 @onready var simulation_clock: SimulationClock = $SimulationClock
 @onready var entity_registry: EntityRegistry = $EntityRegistry
+@onready var session_registry: SessionRegistry = $SessionRegistry
 
 var _health_log_interval_ticks: int = 150
 var _shutdown_after_seconds: float = 0.0
@@ -37,6 +38,14 @@ func _ready() -> void:
             _request_shutdown("entity registry self-test failed", 1)
             return
 
+    if not Network.start_server(
+        config,
+        simulation_clock,
+        entity_registry,
+        session_registry
+    ):
+        _request_shutdown("network startup failed", 1)
+        return
     simulation_clock.start()
     print("[Aetherfall Zone] Ready")
 
@@ -51,6 +60,7 @@ func _exit_tree() -> void:
         simulation_clock.stop()
     if is_instance_valid(entity_registry):
         entity_registry.clear()
+    Network.stop_server()
     _shutdown_completed = true
     print("[Aetherfall Zone] Stopped (process exit)")
 
@@ -68,13 +78,14 @@ func _print_startup_log() -> void:
     print("Zone: %s" % config.zone_id)
     print("Tick rate: %d Hz" % config.simulation_tick_rate)
     print("Max players: %d" % config.max_players)
+    print("Listen port: %d" % config.network_port)
     print("Server instance: %s" % config.server_instance_id)
     print("Protocol version: %d" % PROTOCOL_VERSION)
 
 func _print_health_log() -> void:
     var health_message := (
         "[Aetherfall Zone] Health | Tick: %d | Uptime: %.2f s | "
-        + "Entities: %d | Tick health: last=%.3f ms avg=%.3f ms "
+        + "Entities: %d | Sessions: %d | Tick health: last=%.3f ms avg=%.3f ms "
         + "budget=%.3f ms over_budget=%d"
     )
     print(
@@ -82,6 +93,7 @@ func _print_health_log() -> void:
             simulation_clock.tick_number,
             simulation_clock.get_uptime(),
             entity_registry.get_entity_count(),
+            session_registry.get_session_count(),
             simulation_clock.last_tick_duration * 1000.0,
             simulation_clock.average_tick_duration * 1000.0,
             simulation_clock.expected_tick_duration * 1000.0,
@@ -95,6 +107,12 @@ func _read_development_arguments() -> void:
             _shutdown_after_seconds = maxf(
                 0.0,
                 argument.trim_prefix("--shutdown-after=").to_float()
+            )
+        elif argument.begins_with("--network-port="):
+            config.network_port = clampi(
+                argument.trim_prefix("--network-port=").to_int(),
+                1,
+                65535
             )
 
 func _should_run_registry_self_test() -> bool:
@@ -129,6 +147,8 @@ func _request_shutdown(reason: String, exit_code: int) -> void:
         return
     print("[Aetherfall Zone] Stopping (%s)..." % reason)
     simulation_clock.stop()
+    Network.stop_server()
+    session_registry.clear()
     entity_registry.clear()
     _shutdown_completed = true
     print("[Aetherfall Zone] Stopped")

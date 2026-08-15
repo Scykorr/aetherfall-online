@@ -97,6 +97,8 @@ Acceptance:
 
 ## TASK-005 — Client/server handshake
 
+Status: Completed.
+
 Goal: two clients can connect to the zone server and receive assigned network IDs.
 
 Acceptance:

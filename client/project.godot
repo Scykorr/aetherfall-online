@@ -14,6 +14,10 @@ config/name="Aetherfall Online"
 run/main_scene="res://scenes/world/main.tscn"
 config/features=PackedStringArray("4.7")
 
+[autoload]
+
+Network="*res://scripts/network/client_network.gd"
+
 [display]
 
 window/size/viewport_width=1280
