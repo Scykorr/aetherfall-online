@@ -121,6 +121,8 @@ Acceptance:
 
 ## TASK-006 — Authoritative network movement
 
+Status: Completed.
+
 Goal: replace local-authoritative movement with input intent + server snapshots.
 
 Acceptance:

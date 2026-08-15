@@ -1,6 +1,9 @@
 extends Node
 
+const SNAPSHOT_STORE_SCRIPT: Script = preload("res://scripts/network/snapshot_store.gd")
+
 signal state_changed(new_state: ConnectionState)
+signal snapshot_received(snapshot: Dictionary)
 
 enum ConnectionState {
     DISCONNECTED,
@@ -15,6 +18,9 @@ var state: ConnectionState = ConnectionState.DISCONNECTED
 var assigned_entity_id: int = 0
 var zone_id: String = ""
 var server_tick: int = 0
+var movement_mode: String = "STOP"
+var last_input_sequence: int = 0
+var last_ack_sequence: int = 0
 
 var _config := NetworkConfig.new()
 var _peer: ENetMultiplayerPeer
@@ -22,6 +28,10 @@ var _shutdown_after_seconds: float = 0.0
 var _duplicate_handshake: bool = false
 var _skip_handshake: bool = false
 var _malformed_handshake: bool = false
+var _snapshot_store = SNAPSHOT_STORE_SCRIPT.new()
+var _last_follow_sent_usec: int = 0
+var _last_follow_direction: Vector3 = Vector3.ZERO
+var _movement_test_mode: String = ""
 
 func _ready() -> void:
     _read_development_arguments()
@@ -54,6 +64,46 @@ func disconnect_from_zone() -> void:
 func get_state_name() -> String:
     return ConnectionState.keys()[state]
 
+func send_move_to_point(destination: Vector3) -> void:
+    if state != ConnectionState.READY:
+        return
+    last_input_sequence += 1
+    movement_mode = "MOVE_TO_POINT"
+    movement_intent.rpc_id(1, {
+        "command": movement_mode,
+        "sequence": last_input_sequence,
+        "destination": destination,
+    })
+
+func send_follow_direction(direction: Vector3, force: bool = false) -> void:
+    if state != ConnectionState.READY or direction.is_zero_approx():
+        return
+    var normalized := Vector3(direction.x, 0.0, direction.z).normalized()
+    var interval_usec := int(1_000_000.0 / float(_config.movement_send_rate))
+    var now := Time.get_ticks_usec()
+    var changed := normalized.dot(_last_follow_direction) < 0.995
+    if not force and not changed and now - _last_follow_sent_usec < interval_usec:
+        return
+    last_input_sequence += 1
+    movement_mode = "FOLLOW_CURSOR"
+    _last_follow_sent_usec = now
+    _last_follow_direction = normalized
+    movement_intent.rpc_id(1, {
+        "command": movement_mode,
+        "sequence": last_input_sequence,
+        "direction": normalized,
+    })
+
+func send_stop() -> void:
+    if state != ConnectionState.READY:
+        return
+    last_input_sequence += 1
+    movement_mode = "STOP"
+    movement_intent.rpc_id(1, {
+        "command": movement_mode,
+        "sequence": last_input_sequence,
+    })
+
 @rpc("any_peer", "call_remote", "reliable")
 func request_handshake(_payload: Variant) -> void:
     pass
@@ -78,12 +128,44 @@ func handshake_accepted(payload: Dictionary) -> void:
     print("[Aetherfall Client] Network state: READY")
     if _duplicate_handshake:
         request_handshake.rpc_id(1, {"protocol_version": _config.protocol_version})
+    if not _movement_test_mode.is_empty():
+        get_tree().create_timer(0.5).timeout.connect(_start_movement_test)
 
 @rpc("authority", "call_remote", "reliable")
 func handshake_rejected(reason: String) -> void:
     if multiplayer.get_remote_sender_id() != MultiplayerPeer.TARGET_PEER_SERVER:
         return
     _fail("handshake rejected: %s" % reason)
+
+@rpc("any_peer", "call_remote", "unreliable_ordered")
+func movement_intent(_payload: Variant) -> void:
+    pass
+
+@rpc("authority", "call_remote", "unreliable_ordered")
+func movement_snapshot(snapshot: Dictionary) -> void:
+    if multiplayer.get_remote_sender_id() != MultiplayerPeer.TARGET_PEER_SERVER:
+        return
+    if state != ConnectionState.READY or not _snapshot_store.apply_snapshot(snapshot):
+        return
+    server_tick = _snapshot_store.latest_server_tick
+    var local_state: Dictionary = _snapshot_store.get_state(assigned_entity_id)
+    if not local_state.is_empty():
+        movement_mode = local_state["movement_mode"]
+        last_ack_sequence = local_state["last_processed_input_sequence"]
+    snapshot_received.emit(snapshot)
+    if not _movement_test_mode.is_empty() and server_tick % 15 == 0:
+        var remote_positions: Array[String] = []
+        for player: Dictionary in snapshot["players"]:
+            if player["entity_id"] != assigned_entity_id:
+                remote_positions.append("%d:%s" % [player["entity_id"], player["position"]])
+        print(
+            "[Aetherfall Client] Movement test snapshot: tick=%d local=%s remotes=%s ack=%d" % [
+                server_tick,
+                local_state.get("position", Vector3.ZERO),
+                ",".join(remote_positions),
+                last_ack_sequence,
+            ]
+        )
 
 func _on_connected_to_server() -> void:
     _set_state(ConnectionState.CONNECTED)
@@ -147,7 +229,16 @@ func _read_development_arguments() -> void:
             _skip_handshake = true
         elif argument == "--malformed-handshake":
             _malformed_handshake = true
+        elif argument.begins_with("--movement-test="):
+            _movement_test_mode = argument.trim_prefix("--movement-test=")
 
 func _quit_test_client() -> void:
     disconnect_from_zone()
     get_tree().quit()
+
+func _start_movement_test() -> void:
+    if _movement_test_mode == "move_to_point":
+        send_move_to_point(Vector3(4.0, 0.1, 0.0))
+    elif _movement_test_mode == "follow_cursor":
+        send_follow_direction(Vector3.FORWARD, true)
+        get_tree().create_timer(3.0).timeout.connect(send_stop)

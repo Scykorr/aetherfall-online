@@ -8,6 +8,8 @@ extends Resource
 @export var network_bind_address: String = "127.0.0.1"
 @export_range(1, 65535, 1) var network_port: int = 7777
 @export_range(1.0, 30.0, 0.5) var handshake_timeout_seconds: float = 5.0
+@export_range(0.1, 20.0, 0.1) var player_move_speed: float = 5.0
+@export_range(1, 30, 1) var snapshot_rate: int = 10
 
 var server_instance_id: String = ""
 

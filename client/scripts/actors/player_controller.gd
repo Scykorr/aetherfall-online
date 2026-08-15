@@ -12,6 +12,10 @@ var gravity: float = float(
 )
 
 func _physics_process(delta: float) -> void:
+    var network := get_node_or_null("/root/Network")
+    if network != null and network.get_state_name() == "READY":
+        velocity = Vector3.ZERO
+        return
     var direction := Vector3.ZERO
     if movement_controller != null:
         direction = movement_controller.get_movement_direction()

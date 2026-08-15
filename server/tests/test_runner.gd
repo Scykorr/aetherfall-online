@@ -5,6 +5,7 @@ const TEST_MODULES: Array[Script] = [
     preload("res://tests/test_entity_registry.gd"),
     preload("res://tests/test_session_registry.gd"),
     preload("res://tests/test_protocol.gd"),
+    preload("res://tests/test_movement.gd"),
 ]
 
 func _initialize() -> void:

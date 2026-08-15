@@ -2,6 +2,7 @@ extends Node
 
 const PROTOCOL_VERSION: int = 1
 const HANDSHAKE_SERVICE_SCRIPT: Script = preload("res://scripts/network/handshake_service.gd")
+const MOVEMENT_SYSTEM_SCRIPT: Script = preload("res://scripts/movement/movement_system.gd")
 
 var _config: ZoneConfig
 var _simulation_clock: SimulationClock
@@ -9,6 +10,8 @@ var _entity_registry: EntityRegistry
 var _session_registry: SessionRegistry
 var _peer: ENetMultiplayerPeer
 var _handshake_service: RefCounted
+var _movement_system: RefCounted
+var _snapshot_interval_ticks: int = 3
 
 func start_server(
     config: ZoneConfig,
@@ -24,6 +27,15 @@ func start_server(
         _entity_registry,
         _session_registry,
         PROTOCOL_VERSION
+    )
+    _movement_system = MOVEMENT_SYSTEM_SCRIPT.new(
+        _session_registry,
+        _entity_registry,
+        _config.player_move_speed
+    )
+    _snapshot_interval_ticks = maxi(
+        1,
+        int(round(float(_config.simulation_tick_rate) / float(_config.snapshot_rate)))
     )
     _peer = ENetMultiplayerPeer.new()
     _peer.set_bind_ip(_config.network_bind_address)
@@ -52,6 +64,8 @@ func stop_server() -> void:
         _peer.close()
     multiplayer.multiplayer_peer = null
     _peer = null
+    if _movement_system != null:
+        _movement_system.clear()
 
 @rpc("any_peer", "call_remote", "reliable")
 func request_handshake(payload: Variant) -> void:
@@ -68,6 +82,11 @@ func request_handshake(payload: Variant) -> void:
         return
 
     var entity_id: int = result["entity_id"]
+    var spawn_position := Vector3(float(entity_id - 1) * 1.5, 0.1, 0.0)
+    if not _movement_system.register_ready_player(sender_peer_id, spawn_position):
+        _handshake_service.cleanup_peer(sender_peer_id)
+        _reject_handshake(sender_peer_id, "movement state creation failed")
+        return
     handshake_accepted.rpc_id(sender_peer_id, {
         "entity_id": entity_id,
         "zone_id": String(_config.zone_id),
@@ -91,6 +110,21 @@ func handshake_accepted(_payload: Dictionary) -> void:
 func handshake_rejected(_reason: String) -> void:
     pass
 
+@rpc("any_peer", "call_remote", "unreliable_ordered")
+func movement_intent(payload: Variant) -> void:
+    if not multiplayer.is_server():
+        return
+    var sender_peer_id := multiplayer.get_remote_sender_id()
+    _movement_system.process_intent(
+        sender_peer_id,
+        payload,
+        _simulation_clock.tick_number
+    )
+
+@rpc("authority", "call_remote", "unreliable_ordered")
+func movement_snapshot(_snapshot: Dictionary) -> void:
+    pass
+
 func _on_peer_connected(peer_id: int) -> void:
     var timeout_ticks := maxi(
         1,
@@ -104,6 +138,10 @@ func _on_peer_connected(peer_id: int) -> void:
     print("[Aetherfall Zone] Peer connected: %d" % peer_id)
 
 func _on_peer_disconnected(peer_id: int) -> void:
+    var session := _session_registry.get_session(peer_id)
+    var controlled_entity_id: int = session.get("entity_id", 0)
+    if controlled_entity_id > 0:
+        _movement_system.remove_player(controlled_entity_id)
     var entity_id: int = _handshake_service.cleanup_peer(peer_id)
     print(
         "[Aetherfall Zone] Peer disconnected: peer=%d entity=%d entities=%d sessions=%d" % [
@@ -115,6 +153,9 @@ func _on_peer_disconnected(peer_id: int) -> void:
     )
 
 func _on_simulation_tick(current_tick: int, _simulation_delta: float) -> void:
+    _movement_system.simulate_tick(_simulation_delta)
+    if current_tick % _snapshot_interval_ticks == 0:
+        movement_snapshot.rpc(_movement_system.create_snapshot(current_tick))
     for peer_id in _handshake_service.cleanup_expired_sessions(current_tick):
         print(
             "[Aetherfall Zone] Handshake timeout: peer=%d entities=%d sessions=%d" % [

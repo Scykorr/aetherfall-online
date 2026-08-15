@@ -86,10 +86,15 @@ func get_movement_direction() -> Vector3:
     return _movement_direction
 
 func cancel_movement() -> void:
+    var was_moving := movement_mode != MovementMode.IDLE
     movement_mode = MovementMode.IDLE
     _movement_direction = Vector3.ZERO
     _hide_destination_marker()
     _clear_navigation_debug()
+    if was_moving:
+        var network := get_node_or_null("/root/Network")
+        if network != null:
+            network.send_stop()
 
 func request_move_to_point(requested_target: Vector3) -> bool:
     if player == null or navigation_agent == null:
@@ -130,6 +135,9 @@ func request_move_to_point(requested_target: Vector3) -> bool:
     _movement_direction = Vector3.ZERO
     _debug_path_dirty = true
     _show_destination_marker(resolved_target)
+    var network := get_node_or_null("/root/Network")
+    if network != null:
+        network.send_move_to_point(resolved_target)
     return true
 
 func _try_set_movement_target(screen_position: Vector2) -> void:
@@ -165,6 +173,10 @@ func _update_follow_cursor_intent() -> void:
         if offset.length() <= arrival_distance
         else offset.normalized()
     )
+    if not _movement_direction.is_zero_approx():
+        var network := get_node_or_null("/root/Network")
+        if network != null:
+            network.send_follow_direction(_movement_direction)
 
 func _get_ground_hit(screen_position: Vector2) -> Dictionary:
     if player == null or camera == null or not camera.is_inside_tree():

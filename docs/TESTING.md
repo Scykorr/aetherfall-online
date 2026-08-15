@@ -10,11 +10,17 @@ Run the complete deterministic server suite headlessly:
 godot --headless --path server --script tests/test_runner.gd
 ```
 
-The command is non-interactive and returns exit code `0` only when every test passes. It covers entity IDs and cleanup, sessions, protocol validation, duplicate handshakes and tick-driven timeout cleanup.
+Run client snapshot ordering tests:
+
+```powershell
+godot --headless --path client --script tests/network_snapshot_test.gd
+```
+
+Both commands are non-interactive and return exit code `0` only when every test passes. They cover entity/session cleanup, protocol validation, authoritative movement, ownership, malformed vectors, anti-teleport behavior and snapshot ordering/despawn.
 
 ## Continuous integration
 
-GitHub Actions runs the same server suite on every push and pull request using Godot 4.7.1 on `ubuntu-latest`. The workflow is defined in `.github/workflows/server-tests.yml`; a non-zero test runner exit code fails the job.
+GitHub Actions runs both suites on every push and pull request using Godot 4.7.1 on `ubuntu-latest`. The workflow is defined in `.github/workflows/server-tests.yml`; a non-zero test runner exit code fails the job.
 
 ## Local integration test
 
@@ -27,6 +33,8 @@ godot --headless --path server
 Then run two instances of the client project. Both automatically connect to `127.0.0.1:7777`. Verify that their debug HUDs show `READY` with different entity IDs and that server health logs show entity/session counts changing `2 -> 1 -> 0` as the clients close.
 
 Development arguments support isolated tests, including `--network-port=<port>`, `--protocol-version=<version>`, `--duplicate-handshake`, `--malformed-handshake`, `--skip-handshake` and `--shutdown-after=<seconds>`.
+
+TASK-006 headless integration clients may additionally use `--movement-test=move_to_point` or `--movement-test=follow_cursor`. These hooks are disabled by default and exist only for repeatable local acceptance testing.
 
 ## Test categories
 
