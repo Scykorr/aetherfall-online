@@ -15,6 +15,10 @@ var _move_speed: float
 var _arrival_distance: float
 var _player_radius: float
 var _collision_map: RefCounted
+var _player_lifecycle: RefCounted
+
+func configure_player_lifecycle(player_lifecycle: RefCounted) -> void:
+    _player_lifecycle = player_lifecycle
 
 func _init(
     sessions: Node,
@@ -59,6 +63,8 @@ func process_intent(peer_id: int, payload: Variant, current_tick: int) -> bool:
         return false
     var entity_id: int = session.get("entity_id", 0)
     if not _states.has(entity_id) or _entities.get_entity(entity_id).is_empty():
+        return false
+    if _player_lifecycle != null and not _player_lifecycle.is_alive(entity_id):
         return false
     if not payload is Dictionary:
         return false
@@ -161,6 +167,27 @@ func create_snapshot(server_tick: int) -> Dictionary:
 
 func remove_player(entity_id: int) -> bool:
     return _states.erase(entity_id)
+
+func stop_player(entity_id: int) -> bool:
+    if not _states.has(entity_id):
+        return false
+    var state: Dictionary = _states[entity_id]
+    state["velocity"] = Vector3.ZERO
+    state["movement_mode"] = MODE_STOP
+    state["direction"] = Vector3.ZERO
+    state["current_destination"] = state["position"]
+    return true
+
+func respawn_player(entity_id: int, spawn_position: Vector3) -> bool:
+    if not _states.has(entity_id):
+        return false
+    var state: Dictionary = _states[entity_id]
+    state["position"] = spawn_position
+    state["current_destination"] = spawn_position
+    state["velocity"] = Vector3.ZERO
+    state["direction"] = Vector3.ZERO
+    state["movement_mode"] = MODE_STOP
+    return true
 
 func get_state(entity_id: int) -> Dictionary:
     if not _states.has(entity_id):

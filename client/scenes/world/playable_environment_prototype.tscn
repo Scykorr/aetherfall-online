@@ -1,0 +1,353 @@
+[gd_scene load_steps=24 format=3]
+
+[ext_resource type="NavigationMesh" path="res://navigation/greybox_navigation_mesh.tres" id="1_nav"]
+
+[sub_resource type="StandardMaterial3D" id="Material_ground"]
+albedo_color = Color(0.19, 0.29, 0.24, 1)
+roughness = 0.96
+
+[sub_resource type="StandardMaterial3D" id="Material_path"]
+albedo_color = Color(0.54, 0.36, 0.2, 1)
+roughness = 0.94
+
+[sub_resource type="StandardMaterial3D" id="Material_stone"]
+albedo_color = Color(0.34, 0.35, 0.32, 1)
+roughness = 0.9
+
+[sub_resource type="StandardMaterial3D" id="Material_vegetation"]
+albedo_color = Color(0.12, 0.4, 0.36, 1)
+roughness = 0.88
+
+[sub_resource type="StandardMaterial3D" id="Material_architecture"]
+albedo_color = Color(0.56, 0.45, 0.3, 1)
+roughness = 0.86
+
+[sub_resource type="StandardMaterial3D" id="Material_aether"]
+albedo_color = Color(0.38, 0.2, 0.52, 1)
+roughness = 0.7
+
+[sub_resource type="BoxMesh" id="Mesh_ground"]
+size = Vector3(30, 0.2, 30)
+
+[sub_resource type="BoxShape3D" id="Shape_ground"]
+size = Vector3(30, 0.2, 30)
+
+[sub_resource type="BoxMesh" id="Mesh_path"]
+size = Vector3(5.5, 0.05, 30)
+
+[sub_resource type="BoxMesh" id="Mesh_cube_blocker"]
+size = Vector3(3, 2, 2)
+
+[sub_resource type="BoxShape3D" id="Shape_cube_blocker"]
+size = Vector3(3, 2, 2)
+
+[sub_resource type="CylinderMesh" id="Mesh_column_blocker"]
+top_radius = 1.2
+bottom_radius = 1.2
+height = 2.0
+radial_segments = 12
+
+[sub_resource type="CylinderShape3D" id="Shape_column_blocker"]
+radius = 1.2
+height = 2.0
+
+[sub_resource type="BoxMesh" id="Mesh_passage_blocker"]
+size = Vector3(1.5, 2, 6)
+
+[sub_resource type="BoxShape3D" id="Shape_passage_blocker"]
+size = Vector3(1.5, 2, 6)
+
+[sub_resource type="SphereMesh" id="Mesh_rock"]
+radius = 1.0
+height = 2.0
+radial_segments = 10
+rings = 5
+
+[sub_resource type="CylinderMesh" id="Mesh_trunk"]
+top_radius = 0.25
+bottom_radius = 0.42
+height = 3.4
+radial_segments = 8
+
+[sub_resource type="SphereMesh" id="Mesh_canopy"]
+radius = 1.4
+height = 2.4
+radial_segments = 10
+rings = 5
+
+[sub_resource type="BoxMesh" id="Mesh_ruin_pillar"]
+size = Vector3(1.0, 3.6, 1.0)
+
+[sub_resource type="BoxMesh" id="Mesh_ruin_lintel"]
+size = Vector3(4.2, 0.8, 1.0)
+
+[sub_resource type="PrismMesh" id="Mesh_aether_shard"]
+size = Vector3(0.42, 1.2, 0.48)
+
+[sub_resource type="CylinderMesh" id="Mesh_combat_clearing"]
+top_radius = 5.2
+bottom_radius = 5.2
+height = 0.025
+radial_segments = 32
+
+[node name="PlayableEnvironmentPrototype" type="NavigationRegion3D"]
+navigation_mesh = ExtResource("1_nav")
+
+[node name="Ground" type="StaticBody3D" parent="."]
+collision_layer = 2
+
+[node name="Mesh" type="MeshInstance3D" parent="Ground"]
+mesh = SubResource("Mesh_ground")
+material_override = SubResource("Material_ground")
+
+[node name="Collision" type="CollisionShape3D" parent="Ground"]
+shape = SubResource("Shape_ground")
+
+[node name="Path" type="MeshInstance3D" parent="."]
+position = Vector3(0, 0.115, 0)
+cast_shadow = 0
+mesh = SubResource("Mesh_path")
+material_override = SubResource("Material_path")
+
+[node name="CombatClearing" type="MeshInstance3D" parent="."]
+position = Vector3(6, 0.13, -2)
+cast_shadow = 0
+mesh = SubResource("Mesh_combat_clearing")
+material_override = SubResource("Material_ground")
+
+[node name="RuinAltarBlocker" type="StaticBody3D" parent="."]
+position = Vector3(0, 1.1, -4)
+
+[node name="Core" type="MeshInstance3D" parent="RuinAltarBlocker"]
+mesh = SubResource("Mesh_cube_blocker")
+material_override = SubResource("Material_architecture")
+
+[node name="Cap" type="MeshInstance3D" parent="RuinAltarBlocker"]
+position = Vector3(0, 1.2, 0)
+scale = Vector3(1.12, 0.22, 1.12)
+mesh = SubResource("Mesh_cube_blocker")
+material_override = SubResource("Material_stone")
+
+[node name="AetherShard" type="MeshInstance3D" parent="RuinAltarBlocker"]
+position = Vector3(0.35, 2.05, 0)
+rotation_degrees = Vector3(0, 0, -10)
+mesh = SubResource("Mesh_aether_shard")
+material_override = SubResource("Material_aether")
+
+[node name="Collision" type="CollisionShape3D" parent="RuinAltarBlocker"]
+shape = SubResource("Shape_cube_blocker")
+
+[node name="WatchstoneBlocker" type="StaticBody3D" parent="."]
+position = Vector3(5, 1.1, 4)
+
+[node name="Core" type="MeshInstance3D" parent="WatchstoneBlocker"]
+mesh = SubResource("Mesh_column_blocker")
+material_override = SubResource("Material_stone")
+
+[node name="Crown" type="MeshInstance3D" parent="WatchstoneBlocker"]
+position = Vector3(0, 1.55, 0)
+scale = Vector3(1.3, 1.4, 1.3)
+mesh = SubResource("Mesh_aether_shard")
+material_override = SubResource("Material_vegetation")
+
+[node name="Collision" type="CollisionShape3D" parent="WatchstoneBlocker"]
+shape = SubResource("Shape_column_blocker")
+
+[node name="RuinWallLeft" type="StaticBody3D" parent="."]
+position = Vector3(-3, 1.1, 5)
+
+[node name="Core" type="MeshInstance3D" parent="RuinWallLeft"]
+position = Vector3(0, -0.65, 0)
+scale = Vector3(1, 0.35, 1)
+mesh = SubResource("Mesh_passage_blocker")
+material_override = SubResource("Material_architecture")
+
+[node name="BrokenTop" type="MeshInstance3D" parent="RuinWallLeft"]
+position = Vector3(0, -0.05, -1.7)
+rotation_degrees = Vector3(0, 0, -12)
+scale = Vector3(0.5, 0.32, 0.5)
+mesh = SubResource("Mesh_ruin_pillar")
+material_override = SubResource("Material_stone")
+
+[node name="Collision" type="CollisionShape3D" parent="RuinWallLeft"]
+shape = SubResource("Shape_passage_blocker")
+
+[node name="RuinWallRight" type="StaticBody3D" parent="."]
+position = Vector3(0, 1.1, 5)
+
+[node name="Core" type="MeshInstance3D" parent="RuinWallRight"]
+position = Vector3(0, -0.65, 0)
+scale = Vector3(1, 0.35, 1)
+mesh = SubResource("Mesh_passage_blocker")
+material_override = SubResource("Material_architecture")
+
+[node name="StandingPillar" type="MeshInstance3D" parent="RuinWallRight"]
+position = Vector3(0.15, -0.05, 1.7)
+rotation_degrees = Vector3(0, 0, 10)
+scale = Vector3(0.5, 0.32, 0.5)
+mesh = SubResource("Mesh_ruin_pillar")
+material_override = SubResource("Material_stone")
+
+[node name="Collision" type="CollisionShape3D" parent="RuinWallRight"]
+shape = SubResource("Shape_passage_blocker")
+
+[node name="NorthRuin" type="Node3D" parent="."]
+position = Vector3(4.5, 0, -10.5)
+
+[node name="PillarLeft" type="MeshInstance3D" parent="NorthRuin"]
+position = Vector3(-2.1, 1.8, 0)
+mesh = SubResource("Mesh_ruin_pillar")
+material_override = SubResource("Material_architecture")
+
+[node name="PillarRight" type="MeshInstance3D" parent="NorthRuin"]
+position = Vector3(2.1, 1.8, 0)
+mesh = SubResource("Mesh_ruin_pillar")
+material_override = SubResource("Material_architecture")
+
+[node name="Lintel" type="MeshInstance3D" parent="NorthRuin"]
+position = Vector3(0, 3.95, 0)
+mesh = SubResource("Mesh_ruin_lintel")
+material_override = SubResource("Material_architecture")
+
+[node name="AetherCrownLeft" type="MeshInstance3D" parent="NorthRuin"]
+position = Vector3(-1.2, 4.55, 0)
+rotation_degrees = Vector3(0, 0, -20)
+scale = Vector3(0.58, 0.7, 0.58)
+mesh = SubResource("Mesh_aether_shard")
+material_override = SubResource("Material_vegetation")
+
+[node name="AetherCrownRight" type="MeshInstance3D" parent="NorthRuin"]
+position = Vector3(1.2, 4.55, 0)
+rotation_degrees = Vector3(0, 0, 20)
+scale = Vector3(0.58, 0.7, 0.58)
+mesh = SubResource("Mesh_aether_shard")
+material_override = SubResource("Material_vegetation")
+
+[node name="BoundaryRocks" type="Node3D" parent="."]
+
+[node name="WestNorth" type="MeshInstance3D" parent="BoundaryRocks"]
+position = Vector3(-12.8, 0.9, -9.2)
+rotation_degrees = Vector3(8, 24, -7)
+scale = Vector3(2.3, 1.1, 1.7)
+mesh = SubResource("Mesh_rock")
+material_override = SubResource("Material_stone")
+
+[node name="WestMiddle" type="MeshInstance3D" parent="BoundaryRocks"]
+position = Vector3(-13.4, 0.65, -1.2)
+rotation_degrees = Vector3(-5, -18, 6)
+scale = Vector3(1.7, 0.8, 1.3)
+mesh = SubResource("Mesh_rock")
+material_override = SubResource("Material_stone")
+
+[node name="WestSouth" type="MeshInstance3D" parent="BoundaryRocks"]
+position = Vector3(-12.7, 0.8, 8.8)
+rotation_degrees = Vector3(6, 38, 4)
+scale = Vector3(2.1, 0.95, 1.55)
+mesh = SubResource("Mesh_rock")
+material_override = SubResource("Material_stone")
+
+[node name="EastNorth" type="MeshInstance3D" parent="BoundaryRocks"]
+position = Vector3(13.0, 0.85, -8.4)
+rotation_degrees = Vector3(-4, 16, -5)
+scale = Vector3(2.0, 1.0, 1.5)
+mesh = SubResource("Mesh_rock")
+material_override = SubResource("Material_stone")
+
+[node name="EastSouth" type="MeshInstance3D" parent="BoundaryRocks"]
+position = Vector3(12.8, 0.7, 9.5)
+rotation_degrees = Vector3(7, -28, 5)
+scale = Vector3(1.9, 0.85, 1.4)
+mesh = SubResource("Mesh_rock")
+material_override = SubResource("Material_stone")
+
+[node name="SouthWest" type="MeshInstance3D" parent="BoundaryRocks"]
+position = Vector3(-7.8, 0.65, 13.2)
+rotation_degrees = Vector3(-5, 42, 7)
+scale = Vector3(1.7, 0.75, 1.3)
+mesh = SubResource("Mesh_rock")
+material_override = SubResource("Material_stone")
+
+[node name="SouthEast" type="MeshInstance3D" parent="BoundaryRocks"]
+position = Vector3(7.7, 0.75, 13.1)
+rotation_degrees = Vector3(4, 14, -6)
+scale = Vector3(1.85, 0.88, 1.4)
+mesh = SubResource("Mesh_rock")
+material_override = SubResource("Material_stone")
+
+[node name="Trees" type="Node3D" parent="."]
+
+[node name="TreeNorthWest" type="Node3D" parent="Trees"]
+position = Vector3(-9.6, 0, -10.5)
+
+[node name="Trunk" type="MeshInstance3D" parent="Trees/TreeNorthWest"]
+position = Vector3(0, 1.7, 0)
+mesh = SubResource("Mesh_trunk")
+material_override = SubResource("Material_stone")
+
+[node name="CanopyLower" type="MeshInstance3D" parent="Trees/TreeNorthWest"]
+position = Vector3(0, 3.9, 0)
+scale = Vector3(1.35, 0.92, 1.08)
+mesh = SubResource("Mesh_canopy")
+material_override = SubResource("Material_vegetation")
+
+[node name="CanopyUpper" type="MeshInstance3D" parent="Trees/TreeNorthWest"]
+position = Vector3(0.3, 5.0, -0.15)
+scale = Vector3(0.78, 0.7, 0.76)
+mesh = SubResource("Mesh_canopy")
+material_override = SubResource("Material_vegetation")
+
+[node name="TreeNorthEast" type="Node3D" parent="Trees"]
+position = Vector3(10.5, 0, -11.0)
+scale = Vector3(0.9, 0.9, 0.9)
+
+[node name="Trunk" type="MeshInstance3D" parent="Trees/TreeNorthEast"]
+position = Vector3(0, 1.7, 0)
+mesh = SubResource("Mesh_trunk")
+material_override = SubResource("Material_stone")
+
+[node name="CanopyLower" type="MeshInstance3D" parent="Trees/TreeNorthEast"]
+position = Vector3(0, 3.9, 0)
+scale = Vector3(1.35, 0.92, 1.08)
+mesh = SubResource("Mesh_canopy")
+material_override = SubResource("Material_vegetation")
+
+[node name="CanopyUpper" type="MeshInstance3D" parent="Trees/TreeNorthEast"]
+position = Vector3(-0.25, 5.0, 0.1)
+scale = Vector3(0.78, 0.7, 0.76)
+mesh = SubResource("Mesh_canopy")
+material_override = SubResource("Material_vegetation")
+
+[node name="TreeSouthWest" type="Node3D" parent="Trees"]
+position = Vector3(-11.0, 0, 6.4)
+scale = Vector3(0.78, 0.78, 0.78)
+
+[node name="Trunk" type="MeshInstance3D" parent="Trees/TreeSouthWest"]
+position = Vector3(0, 1.7, 0)
+mesh = SubResource("Mesh_trunk")
+material_override = SubResource("Material_stone")
+
+[node name="CanopyLower" type="MeshInstance3D" parent="Trees/TreeSouthWest"]
+position = Vector3(0, 3.9, 0)
+scale = Vector3(1.35, 0.92, 1.08)
+mesh = SubResource("Mesh_canopy")
+material_override = SubResource("Material_vegetation")
+
+[node name="Shrubs" type="Node3D" parent="."]
+
+[node name="ShrubWest" type="MeshInstance3D" parent="Shrubs"]
+position = Vector3(-7.2, 0.45, -2.0)
+scale = Vector3(0.8, 0.38, 0.7)
+mesh = SubResource("Mesh_canopy")
+material_override = SubResource("Material_vegetation")
+
+[node name="ShrubNorth" type="MeshInstance3D" parent="Shrubs"]
+position = Vector3(-5.5, 0.42, -9.5)
+scale = Vector3(0.68, 0.35, 0.78)
+mesh = SubResource("Mesh_canopy")
+material_override = SubResource("Material_vegetation")
+
+[node name="ShrubEast" type="MeshInstance3D" parent="Shrubs"]
+position = Vector3(11.2, 0.5, -0.5)
+scale = Vector3(0.82, 0.42, 0.72)
+mesh = SubResource("Mesh_canopy")
+material_override = SubResource("Material_vegetation")

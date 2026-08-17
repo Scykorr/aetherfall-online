@@ -19,7 +19,7 @@ func _run_tests() -> void:
     var main := packed_scene.instantiate() as Node3D
     root.add_child(main)
     var navigation_region := main.get_node(
-        "NavigationGreybox"
+        "PlayableEnvironmentPrototype"
     ) as NavigationRegion3D
     var movement_controller := main.get_node(
         "MouseMovementController"
@@ -278,7 +278,9 @@ func _assert_character_reaches(
                 % [
                     movement_controller.movement_mode,
                     movement_controller.navigation_agent.get_navigation_map()
-                    == movement_controller.get_node("../NavigationGreybox").get_navigation_map(),
+                    == movement_controller.get_node(
+                        "../PlayableEnvironmentPrototype"
+                    ).get_navigation_map(),
                     movement_controller.navigation_agent.target_position,
                     movement_controller.navigation_agent.get_final_position(),
                     movement_controller.navigation_agent.is_navigation_finished(),

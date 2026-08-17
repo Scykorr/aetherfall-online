@@ -223,4 +223,57 @@ Acceptance:
 
 Non-goals: player death/respawn, threat tables, loot, XP, skills, animations, VFX and sound.
 
+## TASK-010 — Server-Authoritative Player Death & Respawn
+
+Status: In Progress (implementation, automated tests and local integration complete; remote CI confirmation pending).
+
+Goal: complete the first PvE combat loop with authoritative player death and respawn.
+
+Acceptance:
+- lethal server damage transitions player HP to `0` and `ALIVE -> DEAD` exactly once;
+- death records authoritative killer/ticks/position, stops movement, clears player target and invalidates monster aggro;
+- dead players cannot move, target or attack through malicious client intents;
+- configurable server ticks respawn the same connected entity at its server-owned spawn position;
+- respawn restores full HP, `ALIVE`, zero velocity and empty target without reconnect;
+- movement, targeting and combat work again after respawn;
+- lifecycle state/events replicate consistently to local and remote clients;
+- disconnect while dead removes the pending runtime lifecycle cleanly;
+- deterministic automated tests and one-server/two-client integration pass.
+
+Non-goals: XP, loot, inventory, corpse, penalties, resurrection skills, PvP and polished visuals.
+
+## TASK-011 — XP + Server-Authoritative Loot Foundation
+
+Status: In Progress (implementation, automated tests and local integration complete; remote CI confirmation pending).
+
+Goal: grant authoritative XP and world loot for monster kills, then prove secure pickup without a full inventory.
+
+Acceptance:
+- the authoritative killer receives configured XP exactly once and deterministic multi-level progression works;
+- server-seeded loot tables create registry-owned loot with authoritative item, quantity, position and killer ownership;
+- loot replicates with one entity ID to all clients and survives monster respawn/player death/disconnect until pickup or timeout;
+- pickup accepts only READY, living owner in range and grants the temporary RewardLedger exactly once;
+- foreign, distant, dead, unknown and replayed pickup intents cannot grant rewards;
+- item definitions and loot tables are data-driven;
+- existing and new automated tests plus one-server/two-client integration pass.
+
+Non-goals: full inventory, equipment, trading, currency, crafting, persistence, party loot and final visuals.
+
+## TASK-012 — Server-Authoritative Inventory Foundation
+
+Status: In Progress (implementation, automated tests and local integration complete; remote CI confirmation pending).
+
+Goal: replace the temporary RewardLedger with the first authoritative slot/stack inventory and functional prototype UI.
+
+Acceptance:
+- every READY player receives a configurable 24-slot server-owned inventory with monotonically increasing revision;
+- atomic loot pickup fills partial stacks before empty slots and leaves world loot intact when the full quantity does not fit;
+- `max_stack`, item identity, slot indices and quantities are validated against shared item definitions;
+- sequenced MOVE, merge, split, swap and explicit destroy intents mutate only the sender's inventory and stale/replayed commands are rejected;
+- player death/respawn preserves runtime inventory while disconnect removes it;
+- client applies only newer authoritative inventory states and offers an Input Map-driven functional 24-slot window;
+- deterministic inventory, security, duplication, lifecycle and replication tests plus one-server/two-client integration pass.
+
+Non-goals: equipment, stats, consumable use, vendors, trading, currency, bank, crafting, mail, persistence, database and final UI art.
+
 STOP after each task and request review before starting the next task.

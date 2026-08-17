@@ -9,6 +9,7 @@ const INVALID_TARGET: String = "INVALID_TARGET"
 const TARGET_DEAD: String = "TARGET_DEAD"
 const OUT_OF_RANGE: String = "OUT_OF_RANGE"
 const COOLDOWN: String = "COOLDOWN"
+const PLAYER_DEAD: String = "PLAYER_DEAD"
 
 var _sessions: Node
 var _entities: Node
@@ -54,6 +55,8 @@ func process_attack(peer_id: int, payload: Variant, current_tick: int) -> Dictio
     var attacker_id: int = session.get("entity_id", 0)
     if attacker_id <= 0 or _entities.get_entity(attacker_id).is_empty():
         return _rejected(NOT_READY)
+    if _player_health != null and not _player_health.is_alive(attacker_id):
+        return _rejected(PLAYER_DEAD)
     if not payload is Dictionary or not payload.get("sequence") is int:
         return _rejected(INVALID_SEQUENCE)
     var sequence: int = payload["sequence"]
@@ -129,12 +132,20 @@ func process_monster_attack(
         or attacker.get("movement_state") != &"ATTACK"
     ):
         return _rejected(INVALID_TARGET)
+    if not _player_health.is_alive(target_entity_id):
+        return _rejected(PLAYER_DEAD)
     if attacker.position.distance_to(target.position) > float(attacker["attack_range"]):
         return _rejected(OUT_OF_RANGE)
     if current_tick < int(_monster_next_attack_tick.get(attacker_entity_id, 0)):
         return _rejected(COOLDOWN)
     var damage: int = int(attacker["attack_damage"])
-    var damage_result: Dictionary = _player_health.apply_server_damage(target_entity_id, damage)
+    var damage_result: Dictionary = _player_health.apply_server_damage(
+        target_entity_id,
+        damage,
+        attacker_entity_id,
+        current_tick,
+        target["position"]
+    )
     if not damage_result["applied"]:
         return _rejected(INVALID_TARGET)
     _monster_next_attack_tick[attacker_entity_id] = current_tick + maxi(
@@ -149,9 +160,13 @@ func process_monster_attack(
         "damage": damage,
         "target_current_hp": damage_result["current_hp"],
         "attack_sequence": 0,
-        "target_died": false,
+        "target_died": damage_result["died"],
     }
     _events.append(event)
+    if damage_result["died"]:
+        _movement.stop_player(target_entity_id)
+        _targeting.clear_player_target(target_entity_id)
+        _monsters.clear_aggro_target(target_entity_id)
     return {"accepted": true, "reason": OK, "event": event}
 
 func get_event_count() -> int:

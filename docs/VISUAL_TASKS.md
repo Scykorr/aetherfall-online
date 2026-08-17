@@ -27,39 +27,42 @@ Acceptance:
 
 Non-goals: final production assets, gameplay changes, combat redesign and protocol changes.
 
-## VIS-002 — Player placeholder character
+## VIS-002 — First playable environment prototype
 
-Status: Pending VIS-001.
+Status: Completed.
 
-Goal: replace the player capsule presentation with an original modular placeholder that reads clearly from the 3/4 camera.
-
-Acceptance:
-- the placeholder has a strong front/back silhouette and facing direction;
-- geometry and materials are original and reusable;
-- presentation remains separate from the authoritative movement/controller logic;
-- remote and local players can share the presentation scene with controlled visual variation;
-- material count and approximate render cost are documented.
-
-Non-goals: equipment stats, character customization persistence, authoritative movement and final character art.
-
-## VIS-003 — Monster visual pass
-
-Status: Pending VIS-001.
-
-Goal: give the existing training creature an original, readable placeholder presentation.
+Goal: create a small original outdoor MMORPG test location for existing movement, camera, targeting, combat and monster lifecycle testing.
 
 Acceptance:
-- the creature silhouette is distinct from the player at gameplay distance;
-- alive, selected, damaged, dead and respawned presentation follows existing replicated state;
-- dead presentation is non-targetable because gameplay state says it is dead, not because the visual hides it;
-- selection and HP presentation remain readable without copying third-party UI or creatures;
-- reusable materials and expected cost for groups of monsters are documented.
+- terrain, path, vegetation, rocks, vertical landmarks, a small ruin and readable area boundaries establish the VIS-001 direction;
+- player spawn, server-owned monster spawn and their combat space remain clear at gameplay distance;
+- the existing gameplay camera, navigation mesh, collision layout and presentation systems are reused without changing authority logic;
+- ground treatment leaves target rings, future AoE telegraphs and damage numbers readable;
+- lighting is a reusable daytime baseline rather than a single-angle cinematic setup;
+- materials, lights and repeated props remain suitable for later LOD, instancing and quality scaling.
 
-Non-goals: monster AI, stats, aggro, attacks, loot and respawn authority.
+Non-goals: final environment art, biome production, gameplay changes, player/monster redesign, VFX and protocol changes.
+
+## VIS-003 — Character & monster visual pipeline prototype
+
+Status: Completed.
+
+Goal: replace capsule/sphere visuals with original stylized prototype models behind reusable presentation-scene boundaries.
+
+Acceptance:
+- local and remote players use the same swappable humanoid presentation scene;
+- Training Wisp has a distinct non-humanoid silhouette and a separate presentation scene;
+- gameplay/network roots do not depend on prototype model internals;
+- player presentation exposes `RightHand`, `LeftHand`, `Head` and `Back` visual anchors;
+- replicated ALIVE/DEAD and AI state may adjust monster presentation without creating client authority;
+- scale, import, skeleton, material, naming and performance expectations are documented;
+- existing movement, targeting, combat and lifecycle behavior remains intact.
+
+Non-goals: final models, equipment gameplay, animation controller, attack/death animation, facial animation and customization.
 
 ## VIS-004 — Animation controller
 
-Status: Pending VIS-002 and VIS-003.
+Status: Completed.
 
 Goal: add presentation-only animation state machines for player and monster placeholders.
 
@@ -70,6 +73,12 @@ Acceptance:
 - animation completion changes presentation-only state and never applies gameplay outcomes;
 - repeated, delayed and out-of-order presentation inputs fail safely without inventing authoritative state;
 - transition logic is typed, composable and documented.
+
+Implementation notes:
+- player and Training Wisp share a presentation-only state contract: Idle, Run, AttackBasic, Hit, Death and Respawn;
+- locomotion and lifecycle consume replicated snapshots, while Attack/Hit consume the existing server-confirmed combat event;
+- transitions animate model presentation only; gameplay roots, authority, protocol and combat timing are unchanged;
+- prototype transform clips are deliberately replaceable by production skeletal clips with the same stable names.
 
 Non-goals: damage timing authority, cooldown authority, root-motion authority, combat calculations and protocol changes.
 

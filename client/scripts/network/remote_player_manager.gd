@@ -2,6 +2,9 @@ class_name RemotePlayerManager
 extends Node
 
 const MONSTER_SCENE: PackedScene = preload("res://scenes/actors/monster_placeholder.tscn")
+const PLAYER_PRESENTATION_SCENE: PackedScene = preload(
+    "res://scenes/presentation/player_presentation.tscn"
+)
 
 @export var local_player: CharacterBody3D
 @export var interpolation_speed: float = 12.0
@@ -10,6 +13,7 @@ const MONSTER_SCENE: PackedScene = preload("res://scenes/actors/monster_placehol
 
 var _remote_players: Dictionary = {}
 var _monsters: Dictionary = {}
+var _loot: Dictionary = {}
 var _target_positions: Dictionary = {}
 var _displayed_target_hp: int = -1
 
@@ -29,12 +33,29 @@ func _process(delta: float) -> void:
         elif _monsters.has(entity_id):
             var monster: Node3D = _monsters[entity_id]
             monster.global_position = monster.global_position.lerp(target, weight)
+        elif _loot.has(entity_id):
+            (_loot[entity_id] as Node3D).global_position = target
 
 func get_remote_count() -> int:
     return _remote_players.size()
 
 func get_monster_count() -> int:
     return _monsters.size()
+
+func get_animation_controller(entity_id: int) -> PrototypeAnimationController:
+    if entity_id == Network.assigned_entity_id and local_player != null:
+        return local_player.get_node_or_null(
+            "PlayerPresentation/AnimationController"
+        ) as PrototypeAnimationController
+    if _remote_players.has(entity_id):
+        return (_remote_players[entity_id] as Node).get_node_or_null(
+            "PlayerPresentation/AnimationController"
+        ) as PrototypeAnimationController
+    if _monsters.has(entity_id):
+        return (_monsters[entity_id] as Node).get_node_or_null(
+            "MonsterPresentation/AnimationController"
+        ) as PrototypeAnimationController
+    return null
 
 func _on_snapshot_received(snapshot: Dictionary) -> void:
     var present: Dictionary = {}
@@ -46,8 +67,14 @@ func _on_snapshot_received(snapshot: Dictionary) -> void:
             if not _monsters.has(entity_id):
                 _spawn_monster(entity)
             (_monsters[entity_id] as Node).call("apply_state", entity)
+        elif entity["entity_type"] == "loot":
+            if not _loot.has(entity_id): _spawn_loot(entity)
         elif entity_id != Network.assigned_entity_id and not _remote_players.has(entity_id):
             _spawn_remote(entity_id, entity["position"])
+        if entity["entity_type"] == "player":
+            var animation_controller := get_animation_controller(entity_id)
+            if animation_controller != null:
+                animation_controller.apply_replicated_state(entity)
     for entity_id: int in _remote_players.keys():
         if not present.has(entity_id):
             _remote_players[entity_id].queue_free()
@@ -60,6 +87,10 @@ func _on_snapshot_received(snapshot: Dictionary) -> void:
             _monsters.erase(entity_id)
             _target_positions.erase(entity_id)
             print("[Aetherfall Client] Monster despawned: entity=%d" % entity_id)
+    for entity_id: int in _loot.keys():
+        if not present.has(entity_id):
+            _loot[entity_id].queue_free(); _loot.erase(entity_id); _target_positions.erase(entity_id)
+            print("[Aetherfall Client] Loot despawned: entity=%d" % entity_id)
     _apply_confirmed_target(snapshot)
 
 func _apply_confirmed_target(snapshot: Dictionary) -> void:
@@ -99,13 +130,8 @@ func _spawn_remote(entity_id: int, position: Vector3) -> void:
     var remote := Node3D.new()
     remote.name = "RemotePlayer%d" % entity_id
     remote.position = position
-    var mesh_instance := MeshInstance3D.new()
-    var capsule := CapsuleMesh.new()
-    capsule.radius = 0.45
-    capsule.height = 1.8
-    mesh_instance.mesh = capsule
-    mesh_instance.position = Vector3.UP * 0.9
-    remote.add_child(mesh_instance)
+    var presentation := PLAYER_PRESENTATION_SCENE.instantiate() as Node3D
+    remote.add_child(presentation)
     add_child(remote)
     _remote_players[entity_id] = remote
     print("[Aetherfall Client] Remote spawned: entity=%d" % entity_id)
@@ -124,3 +150,12 @@ func _spawn_monster(state: Dictionary) -> void:
             state["max_hp"],
         ]
     )
+
+func _spawn_loot(state: Dictionary) -> void:
+    var node := Node3D.new(); node.name = "Loot%d" % state["entity_id"]
+    var mesh_instance := MeshInstance3D.new(); var mesh := SphereMesh.new()
+    mesh.radius = 0.18; mesh.height = 0.36; mesh_instance.mesh = mesh; mesh_instance.position.y = 0.25
+    node.add_child(mesh_instance)
+    var label := Label3D.new(); label.text = "%s x%d" % [state["item_id"], state["quantity"]]; label.position.y = 0.7; node.add_child(label)
+    node.position = state["position"]; add_child(node); _loot[state["entity_id"]] = node
+    print("[Aetherfall Client] Loot spawned: entity=%d item=%s quantity=%d owner=%d" % [state.entity_id, state.item_id, state.quantity, state.owner_entity_id])

@@ -17,14 +17,20 @@ var _lifecycle_events: Array[Dictionary] = []
 var _attack_requests: Array[Dictionary] = []
 var _players: RefCounted
 var _aggro_interval_ticks: int = 5
+var _player_lifecycle: RefCounted
 
 func _init(entities: Node, random_seed: int) -> void:
     _entities = entities
     _rng.seed = random_seed
 
-func configure_ai(players: RefCounted, aggro_interval_ticks: int = 5) -> void:
+func configure_ai(
+    players: RefCounted,
+    aggro_interval_ticks: int = 5,
+    player_lifecycle: RefCounted = null
+) -> void:
     _players = players
     _aggro_interval_ticks = maxi(1, aggro_interval_ticks)
+    _player_lifecycle = player_lifecycle
 
 func spawn_monster(template: Dictionary, position: Vector3, created_tick: int) -> int:
     if template.is_empty() or not _is_finite_vector(position):
@@ -76,6 +82,8 @@ func spawn_monster(template: Dictionary, position: Vector3, created_tick: int) -
         "death_tick": -1,
         "respawn_tick": -1,
         "respawn_seconds": respawn_seconds,
+        "xp_reward": int(template.get("xp_reward", 0)),
+        "loot_table_id": String(template.get("loot_table_id", "")),
         "aggro_range": aggro_range,
         "attack_range": attack_range,
         "attack_damage": attack_damage,
@@ -199,9 +207,10 @@ func clear_aggro_target(player_entity_id: int) -> void:
     for entity_id: int in _monsters:
         var state: Dictionary = _monsters[entity_id]
         if state["aggro_target_entity_id"] == player_entity_id:
-            state["aggro_target_entity_id"] = 0
             if state["life_state"] == LIFE_ALIVE:
-                state["movement_state"] = STATE_RETURN
+                _retarget_or_return(state, player_entity_id)
+            else:
+                state["aggro_target_entity_id"] = 0
 
 func get_monster_ids() -> Array[int]:
     var ids: Array[int] = []
@@ -255,10 +264,11 @@ func _begin_wander(state: Dictionary) -> void:
 
 func _simulate_combat_ai(state: Dictionary, delta: float, current_tick: int) -> bool:
     var target_id: int = state["aggro_target_entity_id"]
-    if target_id > 0 and _players.get_state(target_id).is_empty():
-        state["aggro_target_entity_id"] = 0
-        state["movement_state"] = STATE_RETURN
-        target_id = 0
+    if target_id > 0 and (
+        _players.get_state(target_id).is_empty()
+        or (_player_lifecycle != null and not _player_lifecycle.is_alive(target_id))
+    ):
+        target_id = _retarget_or_return(state, target_id)
     if target_id == 0 and state["movement_state"] != STATE_RETURN:
         if current_tick >= 0 and current_tick % _aggro_interval_ticks == 0:
             target_id = _find_nearest_player(state)
@@ -298,20 +308,36 @@ func _simulate_combat_ai(state: Dictionary, delta: float, current_tick: int) -> 
         _move_toward(state, target["position"], state["move_speed"], delta)
     return true
 
-func _find_nearest_player(state: Dictionary) -> int:
+func _find_nearest_player(
+    state: Dictionary,
+    excluded_player_id: int = 0,
+    require_spawn_leash: bool = false
+) -> int:
     var nearest_id := 0
     var nearest_distance := INF
     for player_id: int in _players.get_player_ids():
+        if player_id == excluded_player_id:
+            continue
         var player: Dictionary = _players.get_state(player_id)
         if player.is_empty():
             continue
+        if _player_lifecycle != null and not _player_lifecycle.is_alive(player_id):
+            continue
         var distance: float = state["position"].distance_to(player["position"])
-        if distance <= state["aggro_range"] and (
+        var spawn_distance: float = state["spawn_position"].distance_to(player["position"])
+        if distance <= state["aggro_range"] and (not require_spawn_leash or spawn_distance <= state["leash_range"]) and (
             distance < nearest_distance or (is_equal_approx(distance, nearest_distance) and player_id < nearest_id)
         ):
             nearest_id = player_id
             nearest_distance = distance
     return nearest_id
+
+func _retarget_or_return(state: Dictionary, excluded_player_id: int) -> int:
+    var replacement_id := _find_nearest_player(state, excluded_player_id, true)
+    state["aggro_target_entity_id"] = replacement_id
+    state["velocity"] = Vector3.ZERO
+    state["movement_state"] = STATE_CHASE if replacement_id > 0 else STATE_RETURN
+    return replacement_id
 
 func _move_toward(state: Dictionary, destination: Vector3, speed: float, delta: float) -> void:
     var offset: Vector3 = destination - state["position"]

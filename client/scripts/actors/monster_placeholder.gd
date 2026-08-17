@@ -4,7 +4,7 @@ extends Node3D
 @onready var debug_label: Label3D = $DebugLabel
 @onready var targetable_area: Node = $TargetableArea
 @onready var selection_ring: MeshInstance3D = $SelectionRing
-@onready var mesh_instance: MeshInstance3D = $MeshInstance3D
+@onready var presentation: TrainingWispPresentation = $MonsterPresentation
 
 var _is_alive: bool = true
 
@@ -13,7 +13,7 @@ func apply_state(state: Dictionary) -> void:
     _is_alive = state.get("life_state", "ALIVE") == "ALIVE"
     targetable_area.collision_layer = 4 if _is_alive else 0
     targetable_area.monitorable = _is_alive
-    mesh_instance.scale = Vector3.ONE if _is_alive else Vector3(1.0, 0.25, 1.0)
+    presentation.apply_replicated_state(state)
     debug_label.text = "Training Wisp\nEntity %d\nHP: %d / %d\n%s / %s" % [
         state["entity_id"],
         state["current_hp"],

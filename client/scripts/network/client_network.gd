@@ -2,12 +2,16 @@ extends Node
 
 const SNAPSHOT_STORE_SCRIPT: Script = preload("res://scripts/network/snapshot_store.gd")
 const NETWORK_CONFIG_SCRIPT: Script = preload("res://scripts/network/network_config.gd")
+const INVENTORY_STORE_SCRIPT: Script = preload("res://scripts/inventory/inventory_state_store.gd")
 
 signal state_changed(new_state: ConnectionState)
 signal snapshot_received(snapshot: Dictionary)
 signal combat_event_received(event: Dictionary)
 signal combat_rejection_received(reason: String)
 signal monster_lifecycle_received(event: Dictionary)
+signal player_lifecycle_received(event: Dictionary)
+signal inventory_state_received(state: Dictionary)
+signal inventory_rejection_received(reason: String)
 
 enum ConnectionState {
     DISCONNECTED,
@@ -27,6 +31,7 @@ var last_input_sequence: int = 0
 var last_ack_sequence: int = 0
 var confirmed_target_entity_id: int = 0
 var last_attack_sequence: int = 0
+var last_inventory_sequence: int = 0
 
 var _config = NETWORK_CONFIG_SCRIPT.new()
 var _peer: ENetMultiplayerPeer
@@ -35,6 +40,7 @@ var _duplicate_handshake: bool = false
 var _skip_handshake: bool = false
 var _malformed_handshake: bool = false
 var _snapshot_store = SNAPSHOT_STORE_SCRIPT.new()
+var _inventory_store = INVENTORY_STORE_SCRIPT.new()
 var _last_follow_sent_usec: int = 0
 var _last_follow_direction: Vector3 = Vector3.ZERO
 var _movement_test_mode: String = ""
@@ -52,10 +58,54 @@ var _combat_test_last_chase_tick: int = -1000
 var _ai_test_mode: String = ""
 var _last_local_hp: int = -1
 var _last_monster_ai_state: String = ""
+var _last_monster_aggro_target: int = -1
+var _player_lifecycle_test: bool = false
+var _post_respawn_stage: int = 0
+var _observed_player_life_states: Dictionary = {}
+var _loot_test_mode: String = ""
+var _loot_test_requested: bool = false
+var _loot_seen_tick: int = -1
+var _inventory_test_mode: String = ""
+var _inventory_test_stage: int = 0
+var _inventory_full_rejected_loot_id: int = 0
+var _inventory_full_rejected_tick: int = -1
 
 func _unhandled_input(event: InputEvent) -> void:
+    if _is_world_input_blocked():
+        return
     if event.is_action_pressed("basic_attack"):
         request_basic_attack()
+    elif event.is_action_pressed("interact"):
+        request_first_loot_pickup()
+
+func request_first_loot_pickup() -> void:
+    if state != ConnectionState.READY: return
+    for entity: Dictionary in _snapshot_store.entity_states.values():
+        if entity.get("entity_type") == "loot":
+            pickup_intent.rpc_id(1, entity["entity_id"]); return
+
+func request_inventory_move(source_slot: int, destination_slot: int) -> void:
+    _send_inventory_command("MOVE_SLOT", {"source_slot": source_slot, "destination_slot": destination_slot})
+
+func request_inventory_split(source_slot: int, destination_slot: int, quantity: int) -> void:
+    _send_inventory_command("SPLIT_STACK", {"source_slot": source_slot, "destination_slot": destination_slot, "quantity": quantity})
+
+func request_inventory_destroy(slot: int, quantity: int) -> void:
+    _send_inventory_command("DESTROY_ITEM", {"slot": slot, "quantity": quantity})
+
+func has_inventory_state() -> bool:
+    return _inventory_store.inventory_revision >= 0
+
+func get_inventory_state() -> Dictionary:
+    return _inventory_store.get_state()
+
+func _send_inventory_command(command: String, fields: Dictionary) -> void:
+    if state != ConnectionState.READY:
+        return
+    last_inventory_sequence += 1
+    var payload := {"command": command, "sequence": last_inventory_sequence}
+    payload.merge(fields)
+    inventory_intent.rpc_id(1, payload)
 
 func _ready() -> void:
     _read_development_arguments()
@@ -71,6 +121,8 @@ func connect_to_zone() -> void:
     server_tick = 0
     confirmed_target_entity_id = 0
     last_attack_sequence = 0
+    last_inventory_sequence = 0
+    _inventory_store.reset()
     _combat_test_target_requested = false
     _combat_test_move_requested = false
     _combat_test_attack_count = 0
@@ -81,6 +133,7 @@ func connect_to_zone() -> void:
     _combat_test_last_chase_tick = -1000
     _last_local_hp = -1
     _last_monster_ai_state = ""
+    _last_monster_aggro_target = -1
     _peer = ENetMultiplayerPeer.new()
     var error := _peer.create_client(_config.host, _config.port)
     if error != OK:
@@ -195,6 +248,35 @@ func target_intent(_candidate_entity_id: Variant) -> void:
 func attack_intent(_payload: Variant) -> void:
     pass
 
+@rpc("any_peer", "call_remote", "reliable")
+func pickup_intent(_loot_entity_id: Variant) -> void: pass
+@rpc("authority", "call_remote", "reliable")
+func pickup_result(result: Dictionary) -> void:
+    print("[Aetherfall Client] Loot picked: loot=%d player=%d item=%s quantity=%d" % [result.loot_entity_id, result.player_entity_id, result.item_id, result.quantity])
+@rpc("authority", "call_remote", "reliable")
+func pickup_rejected(loot_entity_id: int, reason: String) -> void:
+    print("[Aetherfall Client] Loot pickup rejected: %d reason=%s" % [loot_entity_id, reason])
+    if _inventory_test_mode == "full" and reason == "INVENTORY_FULL":
+        _inventory_full_rejected_loot_id = loot_entity_id
+        _inventory_full_rejected_tick = server_tick
+
+@rpc("any_peer", "call_remote", "reliable")
+func inventory_intent(_payload: Variant) -> void: pass
+
+@rpc("authority", "call_remote", "reliable")
+func inventory_state(next_state: Dictionary) -> void:
+    if multiplayer.get_remote_sender_id() != MultiplayerPeer.TARGET_PEER_SERVER:
+        return
+    if _inventory_store.apply_state(next_state):
+        inventory_state_received.emit(_inventory_store.get_state())
+        print("[Aetherfall Client] Inventory revision=%d" % _inventory_store.inventory_revision)
+        _run_inventory_test(_inventory_store.get_state())
+
+@rpc("authority", "call_remote", "reliable")
+func inventory_rejected(reason: String) -> void:
+    inventory_rejection_received.emit(reason)
+    print("[Aetherfall Client] Inventory rejected: %s" % reason)
+
 @rpc("authority", "call_remote", "reliable")
 func combat_result(event: Dictionary) -> void:
     combat_event_received.emit(event)
@@ -215,6 +297,22 @@ func combat_rejected(reason: String) -> void:
     print("[Aetherfall Client] Combat rejected: %s" % reason)
 
 @rpc("authority", "call_remote", "reliable")
+func player_lifecycle_event(event: Dictionary) -> void:
+    if (
+        _player_lifecycle_test
+        and event.get("player_entity_id") == assigned_entity_id
+        and event.get("event_type") == "RESPAWNED"
+    ):
+        _post_respawn_stage = 1
+    player_lifecycle_received.emit(event)
+    print(
+        "[Aetherfall Client] Player %s: entity=%d tick=%d killer=%d" % [
+            event["event_type"], event["player_entity_id"],
+            event["server_tick"], event["killer_entity_id"],
+        ]
+    )
+
+@rpc("authority", "call_remote", "reliable")
 func monster_lifecycle_event(event: Dictionary) -> void:
     if event.get("event_type") == "DIED":
         _combat_test_saw_death = true
@@ -232,7 +330,7 @@ func monster_lifecycle_event(event: Dictionary) -> void:
         ]
     )
 
-@rpc("authority", "call_remote", "unreliable_ordered")
+@rpc("authority", "call_remote", "reliable")
 func movement_snapshot(snapshot: Dictionary) -> void:
     if multiplayer.get_remote_sender_id() != MultiplayerPeer.TARGET_PEER_SERVER:
         return
@@ -260,19 +358,40 @@ func movement_snapshot(snapshot: Dictionary) -> void:
                 "[Aetherfall Client] Authoritative player HP: %d / %d"
                 % [local_hp, local_state.get("max_hp", -1)]
             )
+        print_progression_if_changed(local_state)
     if not _ai_test_mode.is_empty():
         for entity: Dictionary in snapshot["entities"]:
+            if entity["entity_type"] == "player":
+                var previous_life: String = _observed_player_life_states.get(
+                    entity["entity_id"], ""
+                )
+                var player_life: String = entity.get("life_state", "ALIVE")
+                if previous_life != player_life:
+                    _observed_player_life_states[entity["entity_id"]] = player_life
+                    print(
+                        "[Aetherfall Client] Player state: entity=%d life=%s hp=%d position=%s" % [
+                            entity["entity_id"], player_life,
+                            entity.get("current_hp", -1), entity["position"],
+                        ]
+                    )
             if entity["entity_type"] == "monster":
                 var ai_state: String = entity["movement_state"]
-                if ai_state != _last_monster_ai_state:
+                var aggro_target: int = entity.get("aggro_target_entity_id", 0)
+                if ai_state != _last_monster_ai_state or aggro_target != _last_monster_aggro_target:
                     _last_monster_ai_state = ai_state
+                    _last_monster_aggro_target = aggro_target
                     print(
-                        "[Aetherfall Client] Monster AI: entity=%d state=%s aggro=%d" % [
+                        "[Aetherfall Client] Monster AI: entity=%d state=%s aggro=%d hp=%d/%d" % [
                             entity["entity_id"], ai_state,
-                            entity.get("aggro_target_entity_id", 0),
+                            aggro_target, entity.get("current_hp", -1),
+                            entity.get("max_hp", -1),
                         ]
                     )
                 break
+    if _player_lifecycle_test:
+        _run_player_lifecycle_test(snapshot, local_state)
+    _run_loot_test(snapshot)
+    _verify_full_inventory_loot(snapshot)
     if _target_test_first_monster and not _target_test_requested:
         for entity: Dictionary in snapshot["entities"]:
             if entity["entity_type"] == "monster":
@@ -304,6 +423,12 @@ func movement_snapshot(snapshot: Dictionary) -> void:
                 last_ack_sequence,
             ]
         )
+
+func print_progression_if_changed(local_state: Dictionary) -> void:
+    var key := "%d:%d" % [local_state.get("level", 1), local_state.get("current_xp", 0)]
+    if get_meta("progression_key", "") == key: return
+    set_meta("progression_key", key)
+    print("[Aetherfall Client] Progression: level=%d xp=%d next=%d" % [local_state.get("level", 1), local_state.get("current_xp", 0), local_state.get("xp_to_next_level", 100)])
 
 func _on_connected_to_server() -> void:
     _set_state(ConnectionState.CONNECTED)
@@ -351,6 +476,13 @@ func _disconnect_transport() -> void:
     multiplayer.multiplayer_peer = null
     _peer = null
     confirmed_target_entity_id = 0
+    _inventory_store.reset()
+
+func _is_world_input_blocked() -> bool:
+    for node: Node in get_tree().get_nodes_in_group("inventory_ui"):
+        if node.has_method("is_world_input_blocked") and node.call("is_world_input_blocked"):
+            return true
+    return false
 
 func _read_development_arguments() -> void:
     for argument in OS.get_cmdline_user_args():
@@ -376,6 +508,12 @@ func _read_development_arguments() -> void:
             _combat_test_mode = argument.trim_prefix("--combat-test=")
         elif argument.begins_with("--ai-test="):
             _ai_test_mode = argument.trim_prefix("--ai-test=")
+        elif argument == "--player-lifecycle-test":
+            _player_lifecycle_test = true
+        elif argument.begins_with("--loot-test="):
+            _loot_test_mode = argument.trim_prefix("--loot-test=")
+        elif argument.begins_with("--inventory-test="):
+            _inventory_test_mode = argument.trim_prefix("--inventory-test=")
 
 func _quit_test_client() -> void:
     disconnect_from_zone()
@@ -399,6 +537,8 @@ func _run_combat_test(snapshot: Dictionary, local_state: Dictionary) -> void:
             monster = entity
             break
     if monster.is_empty():
+        return
+    if _combat_test_mode == "survivor" and monster.get("aggro_target_entity_id", 0) != assigned_entity_id:
         return
     if _combat_test_mode == "lifecycle" and monster.get("life_state") == "DEAD":
         return
@@ -449,7 +589,8 @@ func _run_combat_test(snapshot: Dictionary, local_state: Dictionary) -> void:
             _combat_test_attack_count = 2
             request_basic_attack()
     elif (
-        _combat_test_mode == "lifecycle"
+        _combat_test_mode in ["lifecycle", "partial"]
+        and (_combat_test_mode != "partial" or _combat_test_attack_count < 5)
         and server_tick >= _combat_test_last_attack_tick + 31
     ):
         _combat_test_last_attack_tick = server_tick
@@ -462,3 +603,73 @@ func _run_combat_test(snapshot: Dictionary, local_state: Dictionary) -> void:
     ):
         _combat_test_attack_count = 3
         request_basic_attack()
+
+func _run_player_lifecycle_test(snapshot: Dictionary, local_state: Dictionary) -> void:
+    if _post_respawn_stage == 0 or local_state.get("life_state") != "ALIVE":
+        return
+    var monster: Dictionary = {}
+    for entity: Dictionary in snapshot["entities"]:
+        if entity["entity_type"] == "monster" and entity.get("life_state") == "ALIVE":
+            monster = entity
+            break
+    if monster.is_empty():
+        return
+    if _post_respawn_stage == 1:
+        _post_respawn_stage = 2
+        send_move_to_point(monster["position"])
+        print("[Aetherfall Client] Post-respawn movement requested")
+    elif _post_respawn_stage == 2 and local_state["position"].distance_to(monster["position"]) <= 2.4:
+        _post_respawn_stage = 3
+        send_stop()
+        request_target(monster["entity_id"])
+        print("[Aetherfall Client] Post-respawn target requested")
+    elif _post_respawn_stage == 3 and confirmed_target_entity_id == monster["entity_id"]:
+        _post_respawn_stage = 4
+        request_basic_attack()
+        print("[Aetherfall Client] Post-respawn attack requested")
+
+func _run_loot_test(snapshot: Dictionary) -> void:
+    if _loot_test_mode.is_empty() or _loot_test_requested: return
+    for entity: Dictionary in snapshot["entities"]:
+        if entity["entity_type"] != "loot": continue
+        if _loot_seen_tick < 0: _loot_seen_tick = server_tick
+        var delay := 12 if _loot_test_mode == "owner" else 0
+        if server_tick < _loot_seen_tick + delay: return
+        _loot_test_requested = true
+        pickup_intent.rpc_id(1, entity["entity_id"])
+        print("[Aetherfall Client] Loot test pickup requested: mode=%s loot=%d" % [_loot_test_mode, entity["entity_id"]])
+        return
+
+func _run_inventory_test(inventory: Dictionary) -> void:
+    if _inventory_test_mode != "owner":
+        return
+    var slots: Array = inventory.get("slots", [])
+    match _inventory_test_stage:
+        0:
+            if slots.size() > 0 and not slots[0].is_empty() and int(slots[0].get("quantity", 0)) >= 4:
+                _inventory_test_stage = 1
+                request_inventory_move(0, 1)
+                print("[Aetherfall Client] Inventory integration MOVE requested")
+        1:
+            if slots.size() > 1 and slots[0].is_empty() and int(slots[1].get("quantity", 0)) >= 4:
+                _inventory_test_stage = 2
+                request_inventory_split(1, 2, 2)
+                print("[Aetherfall Client] Inventory integration SPLIT requested")
+        2:
+            if slots.size() > 2 and int(slots[1].get("quantity", 0)) == 2 and int(slots[2].get("quantity", 0)) == 2:
+                _inventory_test_stage = 3
+                request_inventory_move(2, 1)
+                print("[Aetherfall Client] Inventory integration MERGE requested")
+        3:
+            if slots.size() > 2 and int(slots[1].get("quantity", 0)) == 4 and slots[2].is_empty():
+                _inventory_test_stage = 4
+                print("[Aetherfall Client] Inventory integration PASS revision=%d quantity=%d" % [inventory.inventory_revision, slots[1].quantity])
+
+func _verify_full_inventory_loot(snapshot: Dictionary) -> void:
+    if _inventory_full_rejected_loot_id <= 0 or server_tick < _inventory_full_rejected_tick + 6:
+        return
+    for entity: Dictionary in snapshot.get("entities", []):
+        if entity.get("entity_id") == _inventory_full_rejected_loot_id and entity.get("entity_type") == "loot":
+            print("[Aetherfall Client] Full inventory integration PASS loot remains=%d" % _inventory_full_rejected_loot_id)
+            _inventory_full_rejected_loot_id = 0
+            return

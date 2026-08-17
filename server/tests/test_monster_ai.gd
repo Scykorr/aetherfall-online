@@ -14,6 +14,7 @@ func run(suite) -> void:
     _attack_and_hp(suite)
     _leash_and_return(suite)
     _death_interaction(suite)
+    _target_loss_regressions(suite)
 
 func _template(overrides: Dictionary = {}) -> Dictionary:
     var combat := {
@@ -48,7 +49,7 @@ func _context(player_positions: Array[Vector3], monster_position := Vector3.ZERO
         health.register_player(player_id)
         player_ids.append(player_id)
     var monsters = MONSTER_SYSTEM_SCRIPT.new(entities, 7)
-    monsters.configure_ai(movement, 1)
+    monsters.configure_ai(movement, 1, health)
     var monster_id: int = monsters.spawn_monster(_template(), monster_position, 0)
     var targeting = TARGETING_SYSTEM_SCRIPT.new(sessions, entities, movement, monsters, 30.0)
     var combat = COMBAT_SYSTEM_SCRIPT.new(
@@ -93,7 +94,7 @@ func _aggro_and_chase(suite) -> void:
     _tick(dead, 2)
     suite.check("AI-AGGRO-005 dead monster cannot acquire", dead.monsters.get_state(dead.monster_id).aggro_target_entity_id == 0)
     c.monsters.clear_aggro_target(c.players[1])
-    suite.check("AI-AGGRO-006 disconnected target cleared", c.monsters.get_state(c.monster_id).aggro_target_entity_id == 0)
+    suite.check("AI-AGGRO-006 disconnected target replaced", c.monsters.get_state(c.monster_id).aggro_target_entity_id == c.players[0])
     _free(dead); _free(c)
 
 func _attack_and_hp(suite) -> void:
@@ -116,9 +117,6 @@ func _attack_and_hp(suite) -> void:
     c.combat.process_monster_attack(c.monster_id, c.players[0], 32)
     suite.check("PHP-003 client cannot mutate player HP", c.health.get_state(c.players[0]).current_hp == spoof_before)
     suite.check("PHP-004 client cannot choose incoming damage", first.event.damage == state.attack_damage)
-    for tick in range(61, 400, 30):
-        c.combat.process_monster_attack(c.monster_id, c.players[0], tick)
-    suite.check("PHP-005 temporary HP floor is one", c.health.get_state(c.players[0]).current_hp == 1)
     c.movement.process_intent(2, {
         "command": "MOVE_TO_POINT", "sequence": 1,
         "destination": Vector3(2.0, 0.0, 0.0),
@@ -126,6 +124,9 @@ func _attack_and_hp(suite) -> void:
     c.movement.simulate_tick(0.4)
     _tick(c, 401)
     suite.check("AI-CHASE-006 leaving attack range returns to CHASE", c.monsters.get_state(c.monster_id).movement_state == &"CHASE")
+    for tick in range(431, 800, 30):
+        c.monsters.simulate_tick(1.0 / 30.0, tick)
+        c.combat.process_monster_attack(c.monster_id, c.players[0], tick)
     var far := _context([Vector3(2.0, 0.0, 0.0)])
     _tick(far, 1)
     var hp_before: int = far.health.get_state(far.players[0]).current_hp
@@ -172,3 +173,66 @@ func _death_interaction(suite) -> void:
     suite.check("AI-DEATH-004 respawn has no stale aggro", alive.life_state == &"ALIVE" and alive.aggro_target_entity_id == 0)
     suite.check("AI-DEATH-005 respawn restores initial state", alive.movement_state == &"IDLE")
     _free(c)
+
+func _target_loss_regressions(suite) -> void:
+    var death := _context([Vector3(0.5, 0.0, 0.0), Vector3(1.0, 0.0, 0.0)])
+    _tick(death, 1)
+    death.monsters.apply_server_damage(death.monster_id, 60, death.players[0], 2, 30)
+    death.health.apply_server_damage(death.players[0], 100, death.monster_id, 2)
+    death.monsters.clear_aggro_target(death.players[0])
+    var retargeted: Dictionary = death.monsters.get_state(death.monster_id)
+    suite.check("FIX-AGGRO-001 target death retargets without healing", retargeted.current_hp == 40 and retargeted.aggro_target_entity_id == death.players[1] and retargeted.movement_state != &"RETURN")
+    _free(death)
+
+    var disconnected := _context([Vector3(0.5, 0.0, 0.0), Vector3(1.0, 0.0, 0.0)])
+    _tick(disconnected, 1)
+    disconnected.monsters.apply_server_damage(disconnected.monster_id, 60, disconnected.players[0], 2, 30)
+    disconnected.movement.remove_player(disconnected.players[0])
+    disconnected.health.remove_player(disconnected.players[0])
+    disconnected.monsters.clear_aggro_target(disconnected.players[0])
+    var after_disconnect: Dictionary = disconnected.monsters.get_state(disconnected.monster_id)
+    suite.check("FIX-AGGRO-002 disconnect retargets without healing", after_disconnect.current_hp == 40 and after_disconnect.aggro_target_entity_id == disconnected.players[1])
+    _free(disconnected)
+
+    var alone := _context([Vector3(3.0, 0.0, 0.0)])
+    for tick in range(1, 11):
+        _tick(alone, tick)
+    alone.monsters.apply_server_damage(alone.monster_id, 60, alone.players[0], 11, 30)
+    alone.health.apply_server_damage(alone.players[0], 100, alone.monster_id, 11)
+    alone.monsters.clear_aggro_target(alone.players[0])
+    var returning: Dictionary = alone.monsters.get_state(alone.monster_id)
+    suite.check("FIX-AGGRO-003 no replacement begins RETURN without healing", returning.movement_state == &"RETURN" and returning.current_hp == 40)
+    for tick in range(12, 120):
+        _tick(alone, tick)
+        if alone.monsters.get_state(alone.monster_id).movement_state == &"IDLE":
+            break
+    var returned: Dictionary = alone.monsters.get_state(alone.monster_id)
+    suite.check("FIX-AGGRO-004 completed RETURN restores HP", returned.movement_state == &"IDLE" and returned.position == returned.spawn_position and returned.current_hp == returned.max_hp)
+    _free(alone)
+
+    var dead_replacement := _context([Vector3(0.5, 0.0, 0.0), Vector3(1.0, 0.0, 0.0)])
+    dead_replacement.health.apply_server_damage(dead_replacement.players[1], 100, dead_replacement.monster_id, 1)
+    _tick(dead_replacement, 1)
+    dead_replacement.monsters.apply_server_damage(dead_replacement.monster_id, 60, dead_replacement.players[0], 2, 30)
+    dead_replacement.health.apply_server_damage(dead_replacement.players[0], 100, dead_replacement.monster_id, 2)
+    dead_replacement.monsters.clear_aggro_target(dead_replacement.players[0])
+    var no_dead_target: Dictionary = dead_replacement.monsters.get_state(dead_replacement.monster_id)
+    suite.check("FIX-AGGRO-005 dead replacement is rejected", no_dead_target.aggro_target_entity_id == 0 and no_dead_target.movement_state == &"RETURN" and no_dead_target.current_hp == 40)
+    _free(dead_replacement)
+
+    var outside := _context([Vector3(0.5, 0.0, 0.0), Vector3(5.0, 0.0, 0.0)])
+    _tick(outside, 1)
+    outside.monsters.apply_server_damage(outside.monster_id, 60, outside.players[0], 2, 30)
+    outside.health.apply_server_damage(outside.players[0], 100, outside.monster_id, 2)
+    outside.monsters.clear_aggro_target(outside.players[0])
+    var outside_state: Dictionary = outside.monsters.get_state(outside.monster_id)
+    suite.check("FIX-AGGRO-006 outside-leash replacement is rejected", outside_state.aggro_target_entity_id == 0 and outside_state.movement_state == &"RETURN" and outside_state.current_hp == 40)
+    _free(outside)
+
+    var multiple := _context([Vector3(0.5, 0.0, 0.0), Vector3(1.0, 0.0, 0.0), Vector3(-1.0, 0.0, 0.0)])
+    _tick(multiple, 1)
+    multiple.health.apply_server_damage(multiple.players[0], 100, multiple.monster_id, 2)
+    multiple.monsters.clear_aggro_target(multiple.players[0])
+    var deterministic: Dictionary = multiple.monsters.get_state(multiple.monster_id)
+    suite.check("FIX-AGGRO-007 deterministic single replacement", deterministic.aggro_target_entity_id == multiple.players[1] and deterministic.aggro_target_entity_id != multiple.players[2])
+    _free(multiple)

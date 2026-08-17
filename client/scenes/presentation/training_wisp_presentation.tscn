@@ -1,0 +1,128 @@
+[gd_scene load_steps=10 format=3]
+
+[ext_resource type="Script" path="res://scripts/presentation/training_wisp_presentation.gd" id="1_script"]
+[ext_resource type="Script" path="res://scripts/presentation/prototype_animation_controller.gd" id="2_animation"]
+
+[sub_resource type="StandardMaterial3D" id="Material_core"]
+albedo_color = Color(0.23, 0.13, 0.34, 1)
+roughness = 0.78
+
+[sub_resource type="StandardMaterial3D" id="Material_fin"]
+albedo_color = Color(0.48, 0.2, 0.56, 1)
+roughness = 0.7
+
+[sub_resource type="StandardMaterial3D" id="Material_aether"]
+albedo_color = Color(0.22, 0.72, 0.72, 1)
+roughness = 0.54
+emission_enabled = true
+emission = Color(0.035, 0.16, 0.17, 1)
+emission_energy_multiplier = 0.55
+
+[sub_resource type="SphereMesh" id="Mesh_core"]
+radius = 0.52
+height = 0.92
+radial_segments = 10
+rings = 5
+
+[sub_resource type="PrismMesh" id="Mesh_fin"]
+size = Vector3(0.78, 0.18, 0.72)
+
+[sub_resource type="PrismMesh" id="Mesh_shard"]
+size = Vector3(0.25, 0.72, 0.28)
+
+[sub_resource type="SphereMesh" id="Mesh_eye"]
+radius = 0.1
+height = 0.2
+radial_segments = 8
+rings = 4
+
+[node name="TrainingWispPresentation" type="Node3D"]
+script = ExtResource("1_script")
+
+[node name="VisualRoot" type="Node3D" parent="."]
+position = Vector3(0, 0.78, 0)
+
+[node name="CharacterModel" type="Node3D" parent="VisualRoot"]
+
+[node name="Core" type="MeshInstance3D" parent="VisualRoot/CharacterModel"]
+scale = Vector3(1.05, 0.82, 1.32)
+mesh = SubResource("Mesh_core")
+material_override = SubResource("Material_core")
+
+[node name="FinLeft" type="MeshInstance3D" parent="VisualRoot/CharacterModel"]
+position = Vector3(0.58, 0.02, 0)
+rotation_degrees = Vector3(0, -8, -12)
+mesh = SubResource("Mesh_fin")
+material_override = SubResource("Material_fin")
+
+[node name="FinRight" type="MeshInstance3D" parent="VisualRoot/CharacterModel"]
+position = Vector3(-0.58, 0.02, 0)
+rotation_degrees = Vector3(0, 8, 12)
+scale = Vector3(-1, 1, 1)
+mesh = SubResource("Mesh_fin")
+material_override = SubResource("Material_fin")
+
+[node name="CrownCenter" type="MeshInstance3D" parent="VisualRoot/CharacterModel"]
+position = Vector3(0, 0.58, -0.03)
+rotation_degrees = Vector3(0, 0, -6)
+mesh = SubResource("Mesh_shard")
+material_override = SubResource("Material_aether")
+
+[node name="CrownLeft" type="MeshInstance3D" parent="VisualRoot/CharacterModel"]
+position = Vector3(0.3, 0.45, -0.02)
+rotation_degrees = Vector3(4, 0, -28)
+scale = Vector3(0.72, 0.72, 0.72)
+mesh = SubResource("Mesh_shard")
+material_override = SubResource("Material_aether")
+
+[node name="CrownRight" type="MeshInstance3D" parent="VisualRoot/CharacterModel"]
+position = Vector3(-0.3, 0.45, -0.02)
+rotation_degrees = Vector3(-4, 0, 28)
+scale = Vector3(0.72, 0.72, 0.72)
+mesh = SubResource("Mesh_shard")
+material_override = SubResource("Material_aether")
+
+[node name="Eye" type="MeshInstance3D" parent="VisualRoot/CharacterModel"]
+position = Vector3(0, 0.05, 0.55)
+scale = Vector3(1.25, 0.75, 0.55)
+mesh = SubResource("Mesh_eye")
+material_override = SubResource("Material_aether")
+
+[node name="TailLeft" type="MeshInstance3D" parent="VisualRoot/CharacterModel"]
+position = Vector3(0.23, -0.42, -0.32)
+rotation_degrees = Vector3(-26, 0, 18)
+scale = Vector3(0.48, 0.64, 0.48)
+mesh = SubResource("Mesh_shard")
+material_override = SubResource("Material_fin")
+
+[node name="TailRight" type="MeshInstance3D" parent="VisualRoot/CharacterModel"]
+position = Vector3(-0.23, -0.42, -0.32)
+rotation_degrees = Vector3(-26, 0, -18)
+scale = Vector3(0.48, 0.64, 0.48)
+mesh = SubResource("Mesh_shard")
+material_override = SubResource("Material_fin")
+
+[node name="EquipmentRoot" type="Node3D" parent="VisualRoot"]
+
+[node name="Head" type="Marker3D" parent="VisualRoot/EquipmentRoot"]
+position = Vector3(0, 0.85, 0)
+
+[node name="Back" type="Marker3D" parent="VisualRoot/EquipmentRoot"]
+position = Vector3(0, 0.25, -0.5)
+
+[node name="VFXRoot" type="Node3D" parent="VisualRoot"]
+
+[node name="DebugRoot" type="Node3D" parent="."]
+
+[node name="AnimationPlayer" type="AnimationPlayer" parent="."]
+
+[node name="AnimationController" type="Node" parent="." node_paths=PackedStringArray("visual_root", "character_model", "animation_player")]
+script = ExtResource("2_animation")
+visual_root = NodePath("../VisualRoot")
+character_model = NodePath("../VisualRoot/CharacterModel")
+animation_player = NodePath("../AnimationPlayer")
+run_bob_height = 0.12
+attack_lunge_distance = 0.28
+death_drop_distance = 0.58
+death_rotation_degrees = 68.0
+death_vertical_scale = 0.35

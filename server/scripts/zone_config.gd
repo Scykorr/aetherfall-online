@@ -15,11 +15,20 @@ extends Resource
 @export_range(0.1, 20.0, 0.1) var basic_attack_range: float = 2.5
 @export_range(0.1, 10.0, 0.1) var basic_attack_cooldown_seconds: float = 1.0
 @export_range(1, 10000, 1) var player_max_hp: int = 100
+@export_range(0.1, 60.0, 0.1) var player_respawn_delay_seconds: float = 4.0
 @export_range(1, 60, 1) var monster_aggro_interval_ticks: int = 5
+@export var item_catalog_path: String = "shared/data/items/prototype_items.json"
+@export_range(1, 120, 1) var inventory_slot_count: int = 24
+@export var monster_loot_table_path: String = "shared/data/loot_tables/training_wisp.json"
+@export var loot_random_seed: int = 4242
+@export_range(0.1, 10.0, 0.1) var loot_pickup_range: float = 2.5
+@export_range(1.0, 600.0, 1.0) var loot_lifetime_seconds: float = 60.0
 @export var monster_template_path: String = "shared/data/monsters/training_wisp.json"
 @export var monster_spawn_position: Vector3 = Vector3(6.0, 0.1, -2.0)
 @export var monster_random_seed: int = 1337
 var monster_despawn_after_seconds: float = 0.0
+var loot_test_mode: bool = false
+var inventory_full_test_mode: bool = false
 
 const PLAYER_COLLISION_RADIUS: float = 0.45
 const WORLD_HALF_EXTENT: float = 15.0

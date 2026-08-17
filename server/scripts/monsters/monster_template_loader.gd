@@ -19,6 +19,8 @@ static func load_template(repository_relative_path: String) -> Dictionary:
         or not _is_number(stats.get("move_speed"))
         or not wander is Dictionary
         or not _is_number(parsed.get("respawn_seconds"))
+        or not _is_number(parsed.get("xp_reward"))
+        or not parsed.get("loot_table_id") is String
         or not combat is Dictionary
         or not _is_number(combat.get("aggro_range"))
         or not _is_number(combat.get("attack_range"))

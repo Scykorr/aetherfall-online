@@ -11,6 +11,8 @@
   },
   "behavior": "training_passive",
   "respawn_seconds": 5.0,
+  "xp_reward": 60,
+  "loot_table_id": "training_wisp",
   "combat": {
     "aggro_range": 7.0,
     "attack_range": 1.5,

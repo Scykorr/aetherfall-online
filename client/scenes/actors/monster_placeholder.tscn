@@ -1,17 +1,8 @@
-[gd_scene load_steps=8 format=3]
+[gd_scene load_steps=7 format=3]
 
 [ext_resource path="res://scripts/actors/monster_placeholder.gd" type="Script" id="1"]
 [ext_resource path="res://scripts/targeting/targetable_entity.gd" type="Script" id="2"]
-
-[sub_resource type="StandardMaterial3D" id="MonsterMaterial"]
-albedo_color = Color(0.45, 0.85, 0.95, 1)
-emission_enabled = true
-emission = Color(0.08, 0.35, 0.45, 1)
-
-[sub_resource type="SphereMesh" id="MonsterMesh"]
-material = SubResource("MonsterMaterial")
-radius = 0.55
-height = 1.1
+[ext_resource type="PackedScene" path="res://scenes/presentation/training_wisp_presentation.tscn" id="3_presentation"]
 
 [sub_resource type="SphereShape3D" id="TargetShape"]
 radius = 0.7
@@ -43,9 +34,7 @@ visible = false
 position = Vector3(0, 0.06, 0)
 mesh = SubResource("SelectionMesh")
 
-[node name="MeshInstance3D" type="MeshInstance3D" parent="."]
-position = Vector3(0, 0.7, 0)
-mesh = SubResource("MonsterMesh")
+[node name="MonsterPresentation" parent="." instance=ExtResource("3_presentation")]
 
 [node name="DebugLabel" type="Label3D" parent="."]
 position = Vector3(0, 1.7, 0)

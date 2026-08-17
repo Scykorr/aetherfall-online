@@ -1,0 +1,5 @@
+{
+  "training_wisp_essence": {"id": "training_wisp_essence", "display_name": "Training Wisp Essence", "max_stack": 99, "rarity": "common"},
+  "worn_cloth": {"id": "worn_cloth", "display_name": "Worn Cloth", "max_stack": 99, "rarity": "common"},
+  "small_aether_shard": {"id": "small_aether_shard", "display_name": "Small Aether Shard", "max_stack": 50, "rarity": "uncommon"}
+}

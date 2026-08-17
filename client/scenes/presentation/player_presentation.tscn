@@ -1,0 +1,169 @@
+[gd_scene load_steps=14 format=3]
+
+[ext_resource type="Script" path="res://scripts/presentation/prototype_animation_controller.gd" id="1_animation"]
+
+[sub_resource type="StandardMaterial3D" id="Material_cloth"]
+albedo_color = Color(0.72, 0.65, 0.48, 1)
+roughness = 0.86
+
+[sub_resource type="StandardMaterial3D" id="Material_leather"]
+albedo_color = Color(0.22, 0.18, 0.17, 1)
+roughness = 0.9
+
+[sub_resource type="StandardMaterial3D" id="Material_accent"]
+albedo_color = Color(0.1, 0.42, 0.68, 1)
+roughness = 0.68
+
+[sub_resource type="StandardMaterial3D" id="Material_skin"]
+albedo_color = Color(0.74, 0.51, 0.36, 1)
+roughness = 0.82
+
+[sub_resource type="CapsuleMesh" id="Mesh_torso"]
+radius = 0.38
+height = 0.82
+radial_segments = 10
+rings = 3
+
+[sub_resource type="SphereMesh" id="Mesh_head"]
+radius = 0.29
+height = 0.58
+radial_segments = 10
+rings = 5
+
+[sub_resource type="CylinderMesh" id="Mesh_limb"]
+top_radius = 0.11
+bottom_radius = 0.14
+height = 0.55
+radial_segments = 8
+
+[sub_resource type="SphereMesh" id="Mesh_hand"]
+radius = 0.14
+height = 0.28
+radial_segments = 8
+rings = 4
+
+[sub_resource type="BoxMesh" id="Mesh_boot"]
+size = Vector3(0.24, 0.2, 0.38)
+
+[sub_resource type="SphereMesh" id="Mesh_shoulder"]
+radius = 0.22
+height = 0.32
+radial_segments = 8
+rings = 4
+
+[sub_resource type="BoxMesh" id="Mesh_belt"]
+size = Vector3(0.62, 0.13, 0.34)
+
+[sub_resource type="PrismMesh" id="Mesh_facing_accent"]
+size = Vector3(0.36, 0.36, 0.18)
+
+[node name="PlayerPresentation" type="Node3D"]
+
+[node name="VisualRoot" type="Node3D" parent="."]
+
+[node name="CharacterModel" type="Node3D" parent="VisualRoot"]
+
+[node name="Torso" type="MeshInstance3D" parent="VisualRoot/CharacterModel"]
+position = Vector3(0, 1.18, 0)
+scale = Vector3(1.08, 1, 0.82)
+mesh = SubResource("Mesh_torso")
+material_override = SubResource("Material_cloth")
+
+[node name="Belt" type="MeshInstance3D" parent="VisualRoot/CharacterModel"]
+position = Vector3(0, 0.9, 0)
+mesh = SubResource("Mesh_belt")
+material_override = SubResource("Material_leather")
+
+[node name="Head" type="MeshInstance3D" parent="VisualRoot/CharacterModel"]
+position = Vector3(0, 1.7, 0)
+scale = Vector3(1, 1.05, 0.94)
+mesh = SubResource("Mesh_head")
+material_override = SubResource("Material_skin")
+
+[node name="FacingAccent" type="MeshInstance3D" parent="VisualRoot/CharacterModel"]
+position = Vector3(0, 1.35, 0.33)
+rotation_degrees = Vector3(-90, 0, 0)
+mesh = SubResource("Mesh_facing_accent")
+material_override = SubResource("Material_accent")
+
+[node name="ShoulderLeft" type="MeshInstance3D" parent="VisualRoot/CharacterModel"]
+position = Vector3(0.43, 1.38, 0)
+scale = Vector3(1.15, 0.8, 1)
+mesh = SubResource("Mesh_shoulder")
+material_override = SubResource("Material_accent")
+
+[node name="ShoulderRight" type="MeshInstance3D" parent="VisualRoot/CharacterModel"]
+position = Vector3(-0.43, 1.38, 0)
+scale = Vector3(1.15, 0.8, 1)
+mesh = SubResource("Mesh_shoulder")
+material_override = SubResource("Material_accent")
+
+[node name="ArmLeft" type="MeshInstance3D" parent="VisualRoot/CharacterModel"]
+position = Vector3(0.48, 1.04, 0)
+rotation_degrees = Vector3(0, 0, -7)
+mesh = SubResource("Mesh_limb")
+material_override = SubResource("Material_cloth")
+
+[node name="ArmRight" type="MeshInstance3D" parent="VisualRoot/CharacterModel"]
+position = Vector3(-0.48, 1.04, 0)
+rotation_degrees = Vector3(0, 0, 7)
+mesh = SubResource("Mesh_limb")
+material_override = SubResource("Material_cloth")
+
+[node name="HandLeft" type="MeshInstance3D" parent="VisualRoot/CharacterModel"]
+position = Vector3(0.52, 0.72, 0.02)
+mesh = SubResource("Mesh_hand")
+material_override = SubResource("Material_skin")
+
+[node name="HandRight" type="MeshInstance3D" parent="VisualRoot/CharacterModel"]
+position = Vector3(-0.52, 0.72, 0.02)
+mesh = SubResource("Mesh_hand")
+material_override = SubResource("Material_skin")
+
+[node name="LegLeft" type="MeshInstance3D" parent="VisualRoot/CharacterModel"]
+position = Vector3(0.2, 0.5, 0)
+mesh = SubResource("Mesh_limb")
+material_override = SubResource("Material_leather")
+
+[node name="LegRight" type="MeshInstance3D" parent="VisualRoot/CharacterModel"]
+position = Vector3(-0.2, 0.5, 0)
+mesh = SubResource("Mesh_limb")
+material_override = SubResource("Material_leather")
+
+[node name="BootLeft" type="MeshInstance3D" parent="VisualRoot/CharacterModel"]
+position = Vector3(0.2, 0.13, 0.08)
+mesh = SubResource("Mesh_boot")
+material_override = SubResource("Material_leather")
+
+[node name="BootRight" type="MeshInstance3D" parent="VisualRoot/CharacterModel"]
+position = Vector3(-0.2, 0.13, 0.08)
+mesh = SubResource("Mesh_boot")
+material_override = SubResource("Material_leather")
+
+[node name="EquipmentRoot" type="Node3D" parent="VisualRoot"]
+
+[node name="RightHand" type="Marker3D" parent="VisualRoot/EquipmentRoot"]
+position = Vector3(-0.52, 0.72, 0.02)
+
+[node name="LeftHand" type="Marker3D" parent="VisualRoot/EquipmentRoot"]
+position = Vector3(0.52, 0.72, 0.02)
+
+[node name="Head" type="Marker3D" parent="VisualRoot/EquipmentRoot"]
+position = Vector3(0, 1.9, 0)
+
+[node name="Back" type="Marker3D" parent="VisualRoot/EquipmentRoot"]
+position = Vector3(0, 1.24, -0.27)
+
+[node name="VFXRoot" type="Node3D" parent="VisualRoot"]
+
+[node name="DebugRoot" type="Node3D" parent="."]
+
+[node name="AnimationPlayer" type="AnimationPlayer" parent="."]
+
+[node name="AnimationController" type="Node" parent="." node_paths=PackedStringArray("visual_root", "character_model", "animation_player")]
+script = ExtResource("1_animation")
+visual_root = NodePath("../VisualRoot")
+character_model = NodePath("../VisualRoot/CharacterModel")
+animation_player = NodePath("../AnimationPlayer")
+death_drop_distance = 0.42
+death_vertical_scale = 0.82

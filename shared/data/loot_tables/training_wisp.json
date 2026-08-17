@@ -1,0 +1,7 @@
+{
+  "id": "training_wisp",
+  "entries": [
+    {"item_id": "training_wisp_essence", "chance": 1.0, "min_quantity": 1, "max_quantity": 2},
+    {"item_id": "small_aether_shard", "chance": 0.25, "min_quantity": 1, "max_quantity": 1}
+  ]
+}

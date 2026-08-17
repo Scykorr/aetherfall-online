@@ -10,6 +10,9 @@ const TEST_MODULES: Array[Script] = [
     preload("res://tests/test_targeting.gd"),
     preload("res://tests/test_combat.gd"),
     preload("res://tests/test_monster_ai.gd"),
+    preload("res://tests/test_player_lifecycle.gd"),
+    preload("res://tests/test_rewards.gd"),
+    preload("res://tests/test_inventory.gd"),
 ]
 
 func _initialize() -> void:

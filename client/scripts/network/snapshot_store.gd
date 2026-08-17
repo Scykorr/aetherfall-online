@@ -21,7 +21,7 @@ func apply_snapshot(snapshot: Variant) -> bool:
         var velocity: Variant = entity.get("velocity")
         if not entity_id is int or entity_id <= 0:
             return false
-        if not entity_type is String or entity_type not in ["player", "monster"]:
+        if not entity_type is String or entity_type not in ["player", "monster", "loot"]:
             return false
         if not position is Vector3 or not velocity is Vector3:
             return false

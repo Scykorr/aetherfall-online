@@ -117,6 +117,10 @@ func _read_development_arguments() -> void:
                 0.0,
                 argument.trim_prefix("--despawn-monster-after=").to_float()
             )
+        elif argument == "--loot-test-mode":
+            config.loot_test_mode = true
+        elif argument == "--inventory-full-test-mode":
+            config.inventory_full_test_mode = true
 
 func _should_run_registry_self_test() -> bool:
     return "--registry-self-test" in OS.get_cmdline_user_args()

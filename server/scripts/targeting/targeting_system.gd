@@ -7,6 +7,10 @@ var _movement: RefCounted
 var _monsters: RefCounted
 var _selection_range: float
 var _targets: Dictionary = {}
+var _player_lifecycle: RefCounted
+
+func configure_player_lifecycle(player_lifecycle: RefCounted) -> void:
+    _player_lifecycle = player_lifecycle
 
 func _init(
     sessions: Node,
@@ -27,6 +31,8 @@ func request_target(peer_id: int, candidate: Variant) -> bool:
         return false
     var player_id: int = session.get("entity_id", 0)
     if player_id <= 0 or _entities.get_entity(player_id).is_empty():
+        return false
+    if _player_lifecycle != null and not _player_lifecycle.is_alive(player_id):
         return false
     if not candidate is int:
         return false
@@ -55,6 +61,10 @@ func get_target(player_entity_id: int) -> int:
 
 func remove_player(player_entity_id: int) -> void:
     _targets.erase(player_entity_id)
+
+func clear_player_target(player_entity_id: int) -> void:
+    if _targets.has(player_entity_id):
+        _targets[player_entity_id] = 0
 
 func clear_entity_references(entity_id: int) -> void:
     for player_id: int in _targets:

@@ -18,7 +18,7 @@ Run client snapshot ordering tests:
 godot --headless --path client --script tests/network_snapshot_test.gd
 ```
 
-Both commands are non-interactive and return exit code `0` only when every test passes. They cover entity/session cleanup, protocol validation, authoritative movement, ownership, malformed vectors, anti-teleport behavior, deterministic monster aggro/chase/attack/leash/return, monster HP/ownership/lifecycle, authoritative player HP, targeting security, combat range/cooldown/replay/security and snapshot ordering/despawn/death/respawn.
+Both commands are non-interactive and return exit code `0` only when every test passes. They cover entity/session cleanup, protocol validation, authoritative movement, ownership, malformed vectors, anti-teleport behavior, deterministic monster/player lifecycle, authoritative HP, targeting/combat security, XP progression, deterministic loot generation, atomic pickup, inventory slot/stack invariants, mutation replay protection, lifecycle ownership and snapshot/revision ordering.
 
 ## Continuous integration
 
@@ -71,6 +71,18 @@ TASK-008B uses the `basic_attack` Input Map action (`Space`). Basic attacks are 
 TASK-008C removes the temporary HP floor. Training Wisp death and respawn use authoritative server ticks and a delay from its shared template. The server retains the same runtime entity ID, clears all player targets on death and emits reliable `DIED`/`RESPAWNED` lifecycle events. Use `--combat-test=lifecycle` on one headless client to chase and defeat the monster, observe respawn, explicitly retarget it and attack again; run a second ordinary client to verify it receives identical lifecycle events. This development hook is disabled by default.
 
 TASK-009 makes Training Wisp AI server-authoritative. `--ai-test=observe` logs replicated AI state/aggro transitions and authoritative local player HP without changing gameplay. Combine it with `--movement-test=leash` to move a test player outside the leash and observe `CHASE -> RETURN -> IDLE`. The existing `--combat-test=lifecycle` scenario also validates that death interrupts monster combat and respawn restores clean AI. Run a second `--ai-test=observe` client to compare the same combat events and AI states. Player HP is temporarily clamped to `1`; player death belongs to TASK-010. All hooks are disabled by default.
+
+TASK-010 removes TASK-009's temporary player HP floor. Player death and respawn use authoritative lifecycle state and fixed server ticks. `--player-lifecycle-test` lets the monster kill the local test player; after the replicated respawn it requests movement, selects the monster and attacks without reconnecting. Combine it with `--ai-test=observe` on both clients to compare player `ALIVE`/`DEAD` snapshots, HP, positions and lifecycle events. This development hook is disabled by default.
+
+FIX-PLAY-001 retarget validation can use victim A with `--combat-test=partial --ai-test=observe` and survivor B with `--combat-test=survivor --ai-test=observe`. A stops after five attacks; after A dies, B attacks only once it becomes the authoritative aggro target. AI observation logs state, aggro entity and monster HP. For the no-replacement boundary, run B with `--movement-test=leash --ai-test=observe`; after A dies, verify `RETURN` retains damaged HP and `IDLE` at spawn restores full HP. These development hooks are disabled by default.
+
+TASK-011 adds authoritative XP and world loot. Press `E` (`interact`) to request pickup of a replicated loot entity; the client sends only its entity ID. For repeatable integration, start the server with `--loot-test-mode`, run killer A with `--combat-test=lifecycle --loot-test=owner`, and observer B with `--loot-test=unauthorized`. B requests first and must be rejected; A then picks up the same loot, after which both clients observe despawn.
+
+TASK-012 replaces the temporary ledger with a server-authoritative, configurable 24-slot inventory. Press `I` (`toggle_inventory`) to open it. Click a non-empty source then a destination to move, merge or swap. Hold Shift while clicking an empty destination to split half the selected stack. Select a stack and use the explicit **Destroy selected stack** button to remove it. The server calculates every resulting item ID and quantity; the client applies only increasing inventory revisions. Inventory is runtime-only: death/respawn preserves it, disconnect removes it, and persistence is intentionally absent.
+
+For repeatable transport validation, start the server with `--loot-test-mode`, run killer A with `--combat-test=lifecycle --loot-test=owner --inventory-test=owner`, and observer B with `--loot-test=unauthorized`. Test mode makes the guaranteed first loot stack quantity four. A logs authoritative pickup, MOVE, SPLIT, MERGE and final `Inventory integration PASS`; B's foreign pickup remains rejected. All hooks are disabled by default.
+
+To validate the full-inventory boundary over ENet, also start the server with `--inventory-full-test-mode` and run A with `--inventory-test=full`. The server fills each test inventory to valid `max_stack` limits before sending its initial state. A must log `INVENTORY_FULL` followed by `Full inventory integration PASS loot remains=...` from a later world snapshot.
 
 ## Test categories
 
