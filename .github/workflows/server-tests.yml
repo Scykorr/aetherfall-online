@@ -39,6 +39,15 @@ jobs:
             --path server \
             --script tests/test_runner.gd
 
+      - name: Run server navigation movement tests
+        shell: bash
+        run: |
+          set -euo pipefail
+          ".godot-ci/Godot_v${GODOT_RELEASE}_linux.x86_64" \
+            --headless \
+            --path server \
+            --script tests/navigation_movement_test.gd
+
       - name: Run automated client snapshot tests
         shell: bash
         run: |

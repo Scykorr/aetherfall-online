@@ -1,4 +1,4 @@
-[gd_scene load_steps=15 format=3]
+[gd_scene load_steps=16 format=3]
 
 [ext_resource path="res://scenes/actors/player.tscn" type="PackedScene" id="1"]
 [ext_resource path="res://scripts/camera/mmorpg_camera.gd" type="Script" id="2"]
@@ -9,6 +9,7 @@
 [ext_resource path="res://scripts/targeting/targeting_controller.gd" type="Script" id="7"]
 [ext_resource path="res://scripts/inventory/inventory_window.gd" type="Script" id="8"]
 [ext_resource type="Script" path="res://scripts/presentation/presentation_event_router.gd" id="9_presentation"]
+[ext_resource type="PackedScene" path="res://scenes/ui/reward_feedback_hud.tscn" id="10_reward_hud"]
 
 [sub_resource type="Environment" id="Environment"]
 background_mode = 1
@@ -121,6 +122,8 @@ target_label = NodePath("../TargetFrame/MarginContainer/Label")
 [node name="PresentationEventRouter" type="Node" parent="." node_paths=PackedStringArray("presentation_registry")]
 script = ExtResource("9_presentation")
 presentation_registry = NodePath("../RemotePlayerManager")
+
+[node name="RewardFeedbackHud" parent="." instance=ExtResource("10_reward_hud")]
 
 [node name="InventoryWindow" type="PanelContainer" parent="." node_paths=PackedStringArray("slot_grid", "status_label", "destroy_button")]
 visible = false

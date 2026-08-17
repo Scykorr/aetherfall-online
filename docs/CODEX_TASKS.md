@@ -143,6 +143,23 @@ Acceptance:
 - idle/wander is server-side;
 - monster has server-owned HP.
 
+## FIX-MOVE-001 — Server-authoritative obstacle avoidance for click-to-move
+
+Status: Completed.
+
+Goal: make networked `MOVE_TO_POINT` use a server-calculated navigation path instead of direct steering through static obstacles.
+
+Acceptance:
+- the server projects or rejects requested destinations within a small configurable snap distance;
+- the server calculates and owns the authoritative waypoint path;
+- static greybox obstacles are avoided and the collision map remains a final safety boundary;
+- a new click replaces the active server path;
+- client-provided path data is ignored;
+- `FOLLOW_CURSOR` remains direct server-authoritative steering;
+- automated navigation regressions run locally and in CI.
+
+Non-goals: dynamic crowd avoidance, monster navigation rewrite and gameplay features.
+
 ## TASK-008A — Entity Targeting System
 
 Status: In Progress (automated/runtime validation complete; manual LMB and visual acceptance pending).

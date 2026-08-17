@@ -12,17 +12,23 @@ Run the complete deterministic server suite headlessly:
 godot --headless --path server --script tests/test_runner.gd
 ```
 
+Run the server navigation regression suite (it owns a temporary Godot navigation world and waits for the required physics synchronization):
+
+```powershell
+godot --headless --path server --script tests/navigation_movement_test.gd
+```
+
 Run client snapshot ordering tests:
 
 ```powershell
 godot --headless --path client --script tests/network_snapshot_test.gd
 ```
 
-Both commands are non-interactive and return exit code `0` only when every test passes. They cover entity/session cleanup, protocol validation, authoritative movement, ownership, malformed vectors, anti-teleport behavior, deterministic monster/player lifecycle, authoritative HP, targeting/combat security, XP progression, deterministic loot generation, atomic pickup, inventory slot/stack invariants, mutation replay protection, lifecycle ownership and snapshot/revision ordering.
+All commands are non-interactive and return exit code `0` only when every test passes. They cover entity/session cleanup, protocol validation, authoritative movement and pathfinding, ownership, malformed vectors, anti-teleport behavior, deterministic monster/player lifecycle, authoritative HP, targeting/combat security, XP progression, deterministic loot generation, atomic pickup, inventory slot/stack invariants, mutation replay protection, lifecycle ownership and snapshot/revision ordering.
 
 ## Continuous integration
 
-GitHub Actions runs both suites on every push and pull request using Godot 4.7.1 on `ubuntu-latest`. The workflow is defined in `.github/workflows/server-tests.yml`; a non-zero test runner exit code fails the job.
+GitHub Actions runs the server logic, server navigation and client snapshot suites on every push and pull request using Godot 4.7.1 on `ubuntu-latest`. The workflow is defined in `.github/workflows/server-tests.yml`; a non-zero test runner exit code fails the job.
 
 ## Local integration test
 
@@ -59,6 +65,8 @@ Then run two instances of the client project. Both automatically connect to `127
 Development arguments support isolated tests, including `--network-port=<port>`, `--protocol-version=<version>`, `--duplicate-handshake`, `--malformed-handshake`, `--skip-handshake` and `--shutdown-after=<seconds>`.
 
 TASK-006 headless integration clients may additionally use `--movement-test=move_to_point` or `--movement-test=follow_cursor`. These hooks are disabled by default and exist only for repeatable local acceptance testing.
+
+FIX-MOVE-001 moves `MOVE_TO_POINT` path ownership to the server. The server projects a requested destination only within its configured snap distance, computes a path on the zone navigation map and advances through authoritative waypoints. `FOLLOW_CURSOR` remains direct server steering. Automated tests cover straight paths, static-obstacle detours, destination replacement, obstacle/unreachable rejection, ignored client path data and direct follow behavior. For a real transport check, run client A with `--movement-test=navigation_obstacle` and client B with any non-empty observer value such as `--movement-test=observe`; both print periodic authoritative snapshot positions while A routes behind the central obstacle. These hooks are disabled by default.
 
 TASK-007 monster despawn can be exercised with the server argument `--despawn-monster-after=<seconds>`. The default is disabled.
 

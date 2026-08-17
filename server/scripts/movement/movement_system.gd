@@ -16,6 +16,8 @@ var _arrival_distance: float
 var _player_radius: float
 var _collision_map: RefCounted
 var _player_lifecycle: RefCounted
+var _navigation: RefCounted
+var _destination_snap_distance: float
 
 func configure_player_lifecycle(player_lifecycle: RefCounted) -> void:
     _player_lifecycle = player_lifecycle
@@ -27,13 +29,17 @@ func _init(
     arrival_distance: float = 0.1,
     blockers: Array[Dictionary] = [],
     world_half_extent: float = 0.0,
-    player_radius: float = 0.45
+    player_radius: float = 0.45,
+    navigation: RefCounted = null,
+    destination_snap_distance: float = 0.75
 ) -> void:
     _sessions = sessions
     _entities = entities
     _move_speed = move_speed
     _arrival_distance = arrival_distance
     _player_radius = player_radius
+    _navigation = navigation
+    _destination_snap_distance = maxf(0.0, destination_snap_distance)
     _collision_map = MOVEMENT_COLLISION_MAP_SCRIPT.new(blockers, world_half_extent)
 
 func register_ready_player(peer_id: int, spawn_position: Vector3) -> bool:
@@ -54,6 +60,8 @@ func register_ready_player(peer_id: int, spawn_position: Vector3) -> bool:
         "direction": Vector3.ZERO,
         "last_processed_input_sequence": 0,
         "last_input_tick": -1,
+        "navigation_path": PackedVector3Array(),
+        "navigation_path_index": 0,
     }
     return true
 
@@ -83,12 +91,36 @@ func process_intent(peer_id: int, payload: Variant, current_tick: int) -> bool:
             state["movement_mode"] = MODE_STOP
             state["direction"] = Vector3.ZERO
             state["velocity"] = Vector3.ZERO
+            _clear_navigation_path(state)
         MODE_MOVE_TO_POINT:
             var destination: Variant = payload.get("destination")
             if not destination is Vector3 or not _is_finite_vector(destination):
                 return false
+            var requested_destination := Vector3(
+                destination.x,
+                state["position"].y,
+                destination.z
+            )
+            if _navigation != null:
+                var path: PackedVector3Array = _navigation.calculate_path(
+                    state["position"],
+                    requested_destination,
+                    _destination_snap_distance
+                )
+                if path.is_empty():
+                    return false
+                state["navigation_path"] = path
+                state["navigation_path_index"] = 0
+                state["current_destination"] = Vector3(
+                    path[-1].x,
+                    state["position"].y,
+                    path[-1].z
+                )
+            else:
+                state["navigation_path"] = PackedVector3Array()
+                state["navigation_path_index"] = 0
+                state["current_destination"] = requested_destination
             state["movement_mode"] = MODE_MOVE_TO_POINT
-            state["current_destination"] = Vector3(destination.x, state["position"].y, destination.z)
         MODE_FOLLOW_CURSOR:
             var direction: Variant = payload.get("direction")
             if not direction is Vector3 or not _is_finite_vector(direction):
@@ -98,6 +130,7 @@ func process_intent(peer_id: int, payload: Variant, current_tick: int) -> bool:
                 return false
             state["direction"] = horizontal.normalized()
             state["movement_mode"] = MODE_FOLLOW_CURSOR
+            _clear_navigation_path(state)
         _:
             return false
 
@@ -111,13 +144,24 @@ func simulate_tick(delta: float) -> void:
         var direction := Vector3.ZERO
         var desired_position: Vector3
         var completing_destination := false
+        var reached_movement_target := false
         if state["movement_mode"] == MODE_MOVE_TO_POINT:
-            var offset: Vector3 = state["current_destination"] - state["position"]
+            var movement_target: Vector3 = state["current_destination"]
+            var path: PackedVector3Array = state["navigation_path"]
+            var path_index: int = state["navigation_path_index"]
+            if not path.is_empty() and path_index < path.size():
+                movement_target = Vector3(
+                    path[path_index].x,
+                    state["position"].y,
+                    path[path_index].z
+                )
+            var offset: Vector3 = movement_target - state["position"]
             offset.y = 0.0
             var max_step: float = state["move_speed"] * delta
             if offset.length() <= maxf(_arrival_distance, max_step):
                 desired_position = state["position"] + offset
-                completing_destination = true
+                reached_movement_target = true
+                completing_destination = path.is_empty() or path_index >= path.size() - 1
             else:
                 direction = offset.normalized()
                 desired_position = (
@@ -145,11 +189,17 @@ func simulate_tick(delta: float) -> void:
             else Vector3.ZERO
         )
         if (
-            completing_destination
+            state["movement_mode"] == MODE_MOVE_TO_POINT
+            and reached_movement_target
             and state["position"].is_equal_approx(desired_position)
         ):
-            state["velocity"] = Vector3.ZERO
-            state["movement_mode"] = MODE_STOP
+            var active_path: PackedVector3Array = state["navigation_path"]
+            if not active_path.is_empty() and not completing_destination:
+                state["navigation_path_index"] += 1
+            elif completing_destination:
+                state["velocity"] = Vector3.ZERO
+                state["movement_mode"] = MODE_STOP
+                _clear_navigation_path(state)
 
 func create_snapshot(server_tick: int) -> Dictionary:
     var entities: Array[Dictionary] = []
@@ -176,6 +226,7 @@ func stop_player(entity_id: int) -> bool:
     state["movement_mode"] = MODE_STOP
     state["direction"] = Vector3.ZERO
     state["current_destination"] = state["position"]
+    _clear_navigation_path(state)
     return true
 
 func respawn_player(entity_id: int, spawn_position: Vector3) -> bool:
@@ -187,6 +238,7 @@ func respawn_player(entity_id: int, spawn_position: Vector3) -> bool:
     state["velocity"] = Vector3.ZERO
     state["direction"] = Vector3.ZERO
     state["movement_mode"] = MODE_STOP
+    _clear_navigation_path(state)
     return true
 
 func get_state(entity_id: int) -> Dictionary:
@@ -203,8 +255,17 @@ func get_player_ids() -> Array[int]:
     ids.sort()
     return ids
 
+func get_authoritative_path(entity_id: int) -> PackedVector3Array:
+    if not _states.has(entity_id):
+        return PackedVector3Array()
+    return (_states[entity_id]["navigation_path"] as PackedVector3Array).duplicate()
+
 func clear() -> void:
     _states.clear()
 
 func _is_finite_vector(value: Vector3) -> bool:
     return is_finite(value.x) and is_finite(value.y) and is_finite(value.z)
+
+func _clear_navigation_path(state: Dictionary) -> void:
+    state["navigation_path"] = PackedVector3Array()
+    state["navigation_path_index"] = 0

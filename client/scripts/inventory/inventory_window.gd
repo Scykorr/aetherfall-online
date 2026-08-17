@@ -30,6 +30,8 @@ func is_world_input_blocked() -> bool:
     return visible
 
 func _on_inventory_state(state: Dictionary) -> void:
+    var previous_slots: Array = _state.get("slots", []).duplicate(true)
+    var previous_revision: int = int(_state.get("inventory_revision", -1))
     _state = state
     _ensure_buttons(int(state.get("slot_count", 0)))
     var slots: Array = state.get("slots", [])
@@ -46,10 +48,21 @@ func _on_inventory_state(state: Dictionary) -> void:
             _buttons[index].text = "%02d\n%s x%d" % [index + 1, display_name, slot["quantity"]]
             _buttons[index].tooltip_text = "%s (%s), max stack %d" % [display_name, item_id, definition.get("max_stack", 1)]
         _buttons[index].disabled = false
+        if (
+            previous_revision >= 0
+            and index < previous_slots.size()
+            and previous_slots[index] != slot
+        ):
+            _flash_slot(_buttons[index])
     if _selected_slot >= slots.size() or (_selected_slot >= 0 and slots[_selected_slot].is_empty()):
         _selected_slot = -1
     _refresh_selection()
     status_label.text = "Revision %d — click source, then destination; Shift+destination splits half." % state.get("inventory_revision", 0)
+
+func _flash_slot(button: Button) -> void:
+    button.modulate = Color(0.62, 1.0, 0.78)
+    var tween := button.create_tween()
+    tween.tween_property(button, "modulate", Color.WHITE, 0.75)
 
 func _ensure_buttons(count: int) -> void:
     while _buttons.size() < count:

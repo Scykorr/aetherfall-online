@@ -9,6 +9,8 @@ extends Resource
 @export_range(1, 65535, 1) var network_port: int = 7777
 @export_range(1.0, 30.0, 0.5) var handshake_timeout_seconds: float = 5.0
 @export_range(0.1, 20.0, 0.1) var player_move_speed: float = 5.0
+@export_range(0.0, 5.0, 0.05) var movement_destination_snap_distance: float = 0.75
+@export_range(0.01, 2.0, 0.01) var movement_arrival_distance: float = 0.15
 @export_range(1, 30, 1) var snapshot_rate: int = 10
 @export_range(1.0, 100.0, 0.5) var target_selection_range: float = 30.0
 @export_range(1, 1000, 1) var basic_attack_damage: int = 10

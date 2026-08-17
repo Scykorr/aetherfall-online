@@ -3,6 +3,7 @@ extends Node
 const PROTOCOL_VERSION: int = 1
 const HANDSHAKE_SERVICE_SCRIPT: Script = preload("res://scripts/network/handshake_service.gd")
 const MOVEMENT_SYSTEM_SCRIPT: Script = preload("res://scripts/movement/movement_system.gd")
+const SERVER_NAVIGATION_SCRIPT: Script = preload("res://scripts/movement/server_navigation.gd")
 const MONSTER_TEMPLATE_LOADER_SCRIPT: Script = preload("res://scripts/monsters/monster_template_loader.gd")
 const MONSTER_SYSTEM_SCRIPT: Script = preload("res://scripts/monsters/monster_system.gd")
 const TARGETING_SYSTEM_SCRIPT: Script = preload("res://scripts/targeting/targeting_system.gd")
@@ -20,6 +21,7 @@ var _session_registry: Node
 var _peer: ENetMultiplayerPeer
 var _handshake_service: RefCounted
 var _movement_system: RefCounted
+var _server_navigation: RefCounted
 var _snapshot_interval_ticks: int = 3
 var _monster_system: RefCounted
 var _training_monster_id: int = 0
@@ -35,7 +37,8 @@ func start_server(
     config: Resource,
     simulation_clock: Node,
     entity_registry: Node,
-    session_registry: Node
+    session_registry: Node,
+    navigation_map: RID
 ) -> bool:
     _config = config
     _simulation_clock = simulation_clock
@@ -46,14 +49,17 @@ func start_server(
         _session_registry,
         PROTOCOL_VERSION
     )
+    _server_navigation = SERVER_NAVIGATION_SCRIPT.new(navigation_map)
     _movement_system = MOVEMENT_SYSTEM_SCRIPT.new(
         _session_registry,
         _entity_registry,
         _config.player_move_speed,
-        0.1,
+        _config.movement_arrival_distance,
         _config.get_movement_blockers(),
         _config.WORLD_HALF_EXTENT,
-        _config.PLAYER_COLLISION_RADIUS
+        _config.PLAYER_COLLISION_RADIUS,
+        _server_navigation,
+        _config.movement_destination_snap_distance
     )
     _monster_system = MONSTER_SYSTEM_SCRIPT.new(
         _entity_registry,
@@ -163,6 +169,9 @@ func stop_server() -> void:
     _peer = null
     if _movement_system != null:
         _movement_system.clear()
+    if _server_navigation != null:
+        _server_navigation.cleanup()
+        _server_navigation = null
     if _monster_system != null:
         _monster_system.clear()
     if _targeting_system != null:

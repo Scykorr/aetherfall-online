@@ -5,6 +5,9 @@ const MONSTER_SCENE: PackedScene = preload("res://scenes/actors/monster_placehol
 const PLAYER_PRESENTATION_SCENE: PackedScene = preload(
     "res://scenes/presentation/player_presentation.tscn"
 )
+const LOOT_PRESENTATION_SCENE: PackedScene = preload(
+    "res://scenes/presentation/loot_presentation.tscn"
+)
 
 @export var local_player: CharacterBody3D
 @export var interpolation_speed: float = 12.0
@@ -68,7 +71,9 @@ func _on_snapshot_received(snapshot: Dictionary) -> void:
                 _spawn_monster(entity)
             (_monsters[entity_id] as Node).call("apply_state", entity)
         elif entity["entity_type"] == "loot":
-            if not _loot.has(entity_id): _spawn_loot(entity)
+            if not _loot.has(entity_id):
+                _spawn_loot(entity)
+            _apply_loot_presentation(entity)
         elif entity_id != Network.assigned_entity_id and not _remote_players.has(entity_id):
             _spawn_remote(entity_id, entity["position"])
         if entity["entity_type"] == "player":
@@ -152,10 +157,20 @@ func _spawn_monster(state: Dictionary) -> void:
     )
 
 func _spawn_loot(state: Dictionary) -> void:
-    var node := Node3D.new(); node.name = "Loot%d" % state["entity_id"]
-    var mesh_instance := MeshInstance3D.new(); var mesh := SphereMesh.new()
-    mesh.radius = 0.18; mesh.height = 0.36; mesh_instance.mesh = mesh; mesh_instance.position.y = 0.25
-    node.add_child(mesh_instance)
-    var label := Label3D.new(); label.text = "%s x%d" % [state["item_id"], state["quantity"]]; label.position.y = 0.7; node.add_child(label)
-    node.position = state["position"]; add_child(node); _loot[state["entity_id"]] = node
+    var node := LOOT_PRESENTATION_SCENE.instantiate() as LootPresentation
+    node.name = "Loot%d" % state["entity_id"]
+    node.position = state["position"]
+    add_child(node)
+    _loot[state["entity_id"]] = node
     print("[Aetherfall Client] Loot spawned: entity=%d item=%s quantity=%d owner=%d" % [state.entity_id, state.item_id, state.quantity, state.owner_entity_id])
+
+func _apply_loot_presentation(state: Dictionary) -> void:
+    var item_id: String = state.get("item_id", "")
+    var inventory := Network.get_inventory_state()
+    var definitions: Dictionary = inventory.get("item_definitions", {})
+    var definition: Dictionary = definitions.get(item_id, {})
+    (_loot[state["entity_id"]] as LootPresentation).apply_authoritative_state(
+        state,
+        Network.assigned_entity_id,
+        definition
+    )

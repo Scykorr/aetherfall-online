@@ -12,6 +12,8 @@ signal monster_lifecycle_received(event: Dictionary)
 signal player_lifecycle_received(event: Dictionary)
 signal inventory_state_received(state: Dictionary)
 signal inventory_rejection_received(reason: String)
+signal pickup_confirmed(result: Dictionary)
+signal pickup_rejection_received(loot_entity_id: int, reason: String)
 
 enum ConnectionState {
     DISCONNECTED,
@@ -252,9 +254,11 @@ func attack_intent(_payload: Variant) -> void:
 func pickup_intent(_loot_entity_id: Variant) -> void: pass
 @rpc("authority", "call_remote", "reliable")
 func pickup_result(result: Dictionary) -> void:
+    pickup_confirmed.emit(result)
     print("[Aetherfall Client] Loot picked: loot=%d player=%d item=%s quantity=%d" % [result.loot_entity_id, result.player_entity_id, result.item_id, result.quantity])
 @rpc("authority", "call_remote", "reliable")
 func pickup_rejected(loot_entity_id: int, reason: String) -> void:
+    pickup_rejection_received.emit(loot_entity_id, reason)
     print("[Aetherfall Client] Loot pickup rejected: %d reason=%s" % [loot_entity_id, reason])
     if _inventory_test_mode == "full" and reason == "INVENTORY_FULL":
         _inventory_full_rejected_loot_id = loot_entity_id
@@ -522,6 +526,8 @@ func _quit_test_client() -> void:
 func _start_movement_test() -> void:
     if _movement_test_mode == "move_to_point":
         send_move_to_point(Vector3(4.0, 0.1, 0.0))
+    elif _movement_test_mode == "navigation_obstacle":
+        send_move_to_point(Vector3(0.0, 0.1, -8.0))
     elif _movement_test_mode == "follow_cursor":
         send_follow_direction(Vector3.FORWARD, true)
         get_tree().create_timer(3.0).timeout.connect(send_stop)

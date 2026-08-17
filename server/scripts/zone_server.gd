@@ -6,6 +6,7 @@ extends Node
 @onready var simulation_clock = $SimulationClock
 @onready var entity_registry = $EntityRegistry
 @onready var session_registry = $SessionRegistry
+@onready var navigation_region: NavigationRegion3D = $NavigationRegion3D
 
 var _health_log_interval_ticks: int = 150
 var _shutdown_after_seconds: float = 0.0
@@ -36,11 +37,27 @@ func _ready() -> void:
             _request_shutdown("entity registry self-test failed", 1)
             return
 
+    var navigation_map: RID = navigation_region.get_navigation_map()
+    for _frame in 10:
+        if (
+            not NavigationServer3D.map_get_regions(navigation_map).is_empty()
+            and NavigationServer3D.map_get_iteration_id(navigation_map) > 1
+        ):
+            break
+        await get_tree().physics_frame
+    if (
+        NavigationServer3D.map_get_regions(navigation_map).is_empty()
+        or NavigationServer3D.map_get_iteration_id(navigation_map) <= 1
+    ):
+        _request_shutdown("navigation map initialization failed", 1)
+        return
+
     if not Network.start_server(
         config,
         simulation_clock,
         entity_registry,
-        session_registry
+        session_registry,
+        navigation_map
     ):
         _request_shutdown("network startup failed", 1)
         return

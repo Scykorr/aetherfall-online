@@ -82,20 +82,27 @@ Implementation notes:
 
 Non-goals: damage timing authority, cooldown authority, root-motion authority, combat calculations and protocol changes.
 
-## VIS-005 — Hit/death presentation
+## VIS-005 — XP, loot and reward feedback
 
-Status: Pending VIS-004 and an existing confirmed combat/lifecycle event path.
+Status: Completed.
 
-Goal: communicate confirmed hits, HP loss, death and respawn clearly.
+Goal: make authoritative progression and loot outcomes understandable without the debug console.
 
 Acceptance:
-- hit feedback is spawned only from server-confirmed results or authoritative state changes;
-- lethal presentation occurs once for an authoritative death transition;
-- late join/snapshot state produces the correct alive/dead presentation without replaying false hits;
-- effects remain readable when several characters attack one target;
-- effect duration, transparency and particle cost are documented.
+- local progression HUD displays replicated level, current XP and next-level requirement;
+- positive XP changes and level increases produce bounded passive feedback from replicated state;
+- replicated world loot shows display name, quantity, rarity decoration and non-color-only ownership state;
+- pickup success is shown only to the authoritative recipient after the existing confirmed result;
+- rejected pickup uses existing result codes and never predicts acceptance client-side;
+- changed inventory slots flash only after a newer authoritative inventory revision is applied;
+- passive reward UI ignores pointer input and reward feed entries expire with a strict concurrency cap.
 
-Non-goals: hit validation, damage calculation, killer selection, loot, XP and respawn scheduling.
+Implementation notes:
+- one-level XP deltas are derived only between consecutive authoritative progression snapshots; skipped multi-level snapshots use a generic `XP UPDATED` notice because the exact reward is not replicated;
+- `INVENTORY_FULL`, `NOT_OWNER` and `TOO_FAR` have presentation mappings, but the current server returns generic `REJECTED` for ownership/range failures;
+- common and uncommon loot use shared geometry with different label treatment; owned loot uses a ring plus pickup prompt, while unavailable loot uses a square marker plus `LOCKED` label.
+
+Non-goals: reward calculation, loot RNG, ownership rules, pickup validation, inventory authority, final HUD, item icons, currency, quests, sound overhaul and legendary effects.
 
 ## VIS-006 — Environment greybox polish
 
